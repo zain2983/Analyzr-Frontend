@@ -5,6 +5,7 @@ import type React from "react"
 import { useRef, useState } from "react"
 import { Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import HelpButton from "./ui/helpbutton";
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void
@@ -42,36 +43,48 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
   const canUploadMore = currentFileCount < maxFiles
 
   return (
-    <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
-        isDragging ? "border-blue-500 bg-blue-500/5" : "border-zinc-800 hover:border-zinc-700"
-      } ${!canUploadMore ? "opacity-50" : ""}`}
-    >
-      <Upload className="mx-auto h-10 w-10 text-zinc-600" />
-      <p className="mt-4 text-sm font-medium text-zinc-300">
-        {canUploadMore ? "Drag and drop your CSV file here" : `Maximum ${maxFiles} files reached`}
-      </p>
-      <p className="mt-1 text-xs text-zinc-500">
-        {canUploadMore ? `or click to browse (${currentFileCount}/${maxFiles} files)` : "Remove a file to upload more"}
-      </p>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv"
-        onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-        className="hidden"
-        disabled={disabled || !canUploadMore}
-      />
-      <Button
-        onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || !canUploadMore}
-        className="mt-4 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+
+    <div className="file-upload-section">
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <h3 style={{ margin: 0 }}>Upload files</h3>
+        <HelpButton
+          message="Upload CSV, XLSX or JSON files here. You can drag & drop or use the picker. Accepted formats: CSV, XLSX. Small files are processed in-browser; large files are uploaded to the server."
+          link="https://example.com/help#file-upload"
+        />
+      </div>
+
+
+
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${isDragging ? "border-blue-500 bg-blue-500/5" : "border-zinc-800 hover:border-zinc-700"
+          } ${!canUploadMore ? "opacity-50" : ""}`}
       >
-        Browse Files
-      </Button>
+        <Upload className="mx-auto h-10 w-10 text-zinc-600" />
+        <p className="mt-4 text-sm font-medium text-zinc-300">
+          {canUploadMore ? "Drag and drop your CSV file here" : `Maximum ${maxFiles} files reached`}
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {canUploadMore ? `or click to browse (${currentFileCount}/${maxFiles} files)` : "Remove a file to upload more"}
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+          className="hidden"
+          disabled={disabled || !canUploadMore}
+        />
+        <Button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || !canUploadMore}
+          className="mt-4 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+        >
+          Browse Files
+        </Button>
+      </div>
     </div>
   )
 }
