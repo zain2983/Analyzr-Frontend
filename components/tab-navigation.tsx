@@ -12,6 +12,11 @@ const tabs: Tab[] = [
   { id: "csv-basics", label: "CSV Basics" },
   { id: "eda", label: "EDA" },
   { id: "visualizations", label: "Visualizations" },
+  { id: "data-cleaning", label: "Data Cleaning" },
+  { id: "merge-join", label: "Merge & Join" },
+  { id: "transformation", label: "Transform" },
+  { id: "compare", label: "Compare" },
+  { id: "data-ops", label: "Data Operations" },
 ]
 
 interface TabNavigationProps {

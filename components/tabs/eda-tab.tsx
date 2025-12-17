@@ -1,14 +1,19 @@
+"use client"
+
 import { Card } from "@/components/ui/card"
 import type { Dataset } from "@/app/page"
 import { DataTable } from "@/components/data-table"
 import { AlertCircle, Database, Hash, FileText } from "lucide-react"
+import { useState } from "react"
 
 interface EDATabProps {
-  dataset: Dataset | null
+  datasets: Dataset[]
 }
 
-export function EDATab({ dataset }: EDATabProps) {
-  if (!dataset) {
+export function EDATab({ datasets }: EDATabProps) {
+  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState<number>(0)
+
+  if (datasets.length === 0) {
     return (
       <div className="space-y-6">
         <div>
@@ -24,6 +29,8 @@ export function EDATab({ dataset }: EDATabProps) {
       </div>
     )
   }
+
+  const dataset = datasets[selectedDatasetIndex]
 
   // TODO: Replace with actual API call to FastAPI backend
   // const response = await fetch(`/api/dataset/eda?name=${dataset.name}`)
@@ -58,6 +65,23 @@ export function EDATab({ dataset }: EDATabProps) {
         <h2 className="text-2xl font-semibold text-zinc-100">Exploratory Data Analysis</h2>
         <p className="mt-1 text-sm text-zinc-400">Statistical summaries and data quality insights</p>
       </div>
+
+      {datasets.length > 1 && (
+        <Card className="border-zinc-800 bg-zinc-900 p-4">
+          <label className="mb-2 block text-sm font-medium text-zinc-400">Select Dataset</label>
+          <select
+            value={selectedDatasetIndex}
+            onChange={(e) => setSelectedDatasetIndex(Number(e.target.value))}
+            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none"
+          >
+            {datasets.map((ds, idx) => (
+              <option key={idx} value={idx}>
+                {ds.name} ({ds.rows} rows, {ds.columns} columns)
+              </option>
+            ))}
+          </select>
+        </Card>
+      )}
 
       {/* Dataset Overview */}
       <div>

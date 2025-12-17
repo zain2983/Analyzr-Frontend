@@ -7,20 +7,29 @@ import { Database } from "lucide-react"
 import { ChartContainer } from "@/components/chart-container"
 
 interface VisualizationsTabProps {
-  dataset: Dataset | null
+  datasets: Dataset[]
 }
 
 type ChartType = "bar" | "histogram" | "pie"
 
-export function VisualizationsTab({ dataset }: VisualizationsTabProps) {
+export function VisualizationsTab({ datasets }: VisualizationsTabProps) {
+  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState<number>(0)
   const [selectedColumn, setSelectedColumn] = useState<string>("")
   const [chartType, setChartType] = useState<ChartType>("bar")
+
+  const dataset = datasets.length > 0 ? datasets[selectedDatasetIndex] : null
 
   useEffect(() => {
     if (dataset && dataset.columnNames.length > 0 && !selectedColumn) {
       setSelectedColumn(dataset.columnNames[0])
     }
   }, [dataset, selectedColumn])
+
+  useEffect(() => {
+    if (dataset && dataset.columnNames.length > 0) {
+      setSelectedColumn(dataset.columnNames[0])
+    }
+  }, [selectedDatasetIndex, dataset])
 
   if (!dataset) {
     return (
@@ -53,6 +62,23 @@ export function VisualizationsTab({ dataset }: VisualizationsTabProps) {
       {/* Visualization Controls */}
       <Card className="border-zinc-800 bg-zinc-900 p-6">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {datasets.length > 1 && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-300">Select Dataset</label>
+              <select
+                value={selectedDatasetIndex}
+                onChange={(e) => setSelectedDatasetIndex(Number(e.target.value))}
+                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700"
+              >
+                {datasets.map((ds, idx) => (
+                  <option key={idx} value={idx}>
+                    {ds.name} ({ds.rows} rows, {ds.columns} columns)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-sm font-medium text-zinc-300">Select Column</label>
             <select
