@@ -24,19 +24,37 @@ export default function Page() {
     <div className="dark min-h-screen bg-zinc-950">
       {/* Top Navigation Bar */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
-        <div className="flex h-14 items-center justify-between px-6">
-          <h1 className="text-sm font-medium text-zinc-100">Analyzr</h1>
+        <div className="mx-auto flex h-auto max-w-7xl flex-col gap-4 px-4 py-4 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-0">
+          {/* Title */}
+          <h1 className="text-2xl font-semibold text-zinc-100 sm:text-3xl">
+            Analyzr
+          </h1>
 
-          <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+          {/* Tabs */}
+          <div className="overflow-x-auto">
+            <TabNavigation
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="pt-14">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          {activeTab === "csv-basics" && <CSVBasicsTab dataset={dataset} onDatasetChange={setDataset} />}
+      <main className="pt-24 sm:pt-16">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+          {activeTab === "csv-basics" && (
+            <CSVBasicsTab
+              dataset={dataset}
+              onDatasetChange={setDataset}
+            />
+          )}
+
           {activeTab === "eda" && <EDATab dataset={dataset} />}
-          {activeTab === "visualizations" && <VisualizationsTab dataset={dataset} />}
+
+          {activeTab === "visualizations" && (
+            <VisualizationsTab dataset={dataset} />
+          )}
         </div>
       </main>
     </div>
