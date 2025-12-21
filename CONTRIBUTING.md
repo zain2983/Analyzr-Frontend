@@ -10,8 +10,9 @@ The goal is to keep the codebase **clean, readable, and practical**, while gradu
 ## 📌 Project Status
 
 <details>
-
+<summary>
 ### ✅ Things Already Done
+</summary>
 
 The following core features are already implemented:
 
@@ -32,7 +33,9 @@ These form the foundation of the application.
 
 
 <details>
+<summary>
 ## 🚧 Things That Need to Be Done (To-Dos)
+</summary>
 
 ### 🔹 Data Operations
 - Filtering
