@@ -108,7 +108,7 @@ If you are working on backend-related features, refer to the backend directory/r
 
 > Note: The backend is intentionally stateless and does not persist data to any database.
 </details>
----
+
 
 ## 📣 Suggestions & Discussions
 
