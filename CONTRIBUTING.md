@@ -9,6 +9,8 @@ The goal is to keep the codebase **clean, readable, and practical**, while gradu
 
 ## 📌 Project Status
 
+<details>
+
 ### ✅ Things Already Done
 
 The following core features are already implemented:
@@ -26,8 +28,10 @@ The following core features are already implemented:
 
 These form the foundation of the application.
 
----
+</details>
 
+
+<details>
 ## 🚧 Things That Need to Be Done (To-Dos)
 
 ### 🔹 Data Operations
@@ -36,7 +40,6 @@ These form the foundation of the application.
 - Aggregations
 - Column-based operations
 
----
 
 ### 🔹 Visualizations
 - Improve existing charts
@@ -44,7 +47,6 @@ These form the foundation of the application.
 - Handle large categorical columns gracefully
 - Improve responsiveness and UX
 
----
 
 ### 🔹 Data Cleaning Tab
 Frontend:
@@ -58,7 +60,6 @@ Backend:
 - Return before/after stats
 - Ensure operations are session-based (in-memory)
 
----
 
 ### 🔹 Merge & Join Tab
 Frontend:
@@ -71,7 +72,6 @@ Backend:
 - Schema validation
 - Join safety checks
 
----
 
 ### 🔹 Transform Tab
 Frontend:
@@ -84,7 +84,8 @@ Backend:
 - Validation and error handling
 - In-memory dataset mutation
 
----
+</details>
+
 
 ## 🔌 Backend Development
 
@@ -96,30 +97,10 @@ The backend is built using **FastAPI** and handles:
 
 If you are working on backend-related features, refer to the backend directory/repository here: https://github.com/zain2983/Analyzr-Backend
 
-👉 **Backend code:**  
-`/backend` (or corresponding backend repository)
+<!-- 👉 **Backend code:**  
+`/backend` (or corresponding backend repository) -->
 
 > Note: The backend is intentionally stateless and does not persist data to any database.
-
----
-
-## 🧠 Contribution Guidelines
-
-- Keep changes **small and focused**
-- Prefer clarity over cleverness
-- Avoid introducing paid services or storage
-- Follow existing code structure
-- Add comments where logic is non-obvious
-
----
-
-## 🧪 Testing & Validation
-
-- Test with multiple CSV files
-- Validate behavior on:
-  - Small datasets
-  - Medium datasets
-  - Edge cases (empty columns, mixed types)
 
 ---
 
@@ -128,11 +109,9 @@ If you are working on backend-related features, refer to the backend directory/r
 If you have ideas for improvements or new features:
 - Reach out to me on X or Telegram
 - Open an issue
-- Clearly describe the problem and expected behavior
-- Keep suggestions aligned with the project’s goal:  
-  **lightweight, in-memory CSV analytics**
 
----
+
+
 
 Thanks again for contributing 🙌  
 Every improvement makes this tool more useful and robust.
