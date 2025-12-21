@@ -94,7 +94,7 @@ The backend is built using **FastAPI** and handles:
 - EDA computations
 - Data operations and transformations
 
-If you are working on backend-related features, refer to the backend directory/repository here:
+If you are working on backend-related features, refer to the backend directory/repository here: https://github.com/zain2983/Analyzr-Backend
 
 👉 **Backend code:**  
 `/backend` (or corresponding backend repository)
@@ -126,6 +126,7 @@ If you are working on backend-related features, refer to the backend directory/r
 ## 📣 Suggestions & Discussions
 
 If you have ideas for improvements or new features:
+- Reach out to me on X or Telegram
 - Open an issue
 - Clearly describe the problem and expected behavior
 - Keep suggestions aligned with the project’s goal:  
