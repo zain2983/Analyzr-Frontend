@@ -11,7 +11,7 @@ The goal is to keep the codebase **clean, readable, and practical**, while gradu
 
 <details>
 <summary>
-### ✅ Things Already Done
+✅ Things Already Done
 </summary>
 
 The following core features are already implemented:
@@ -34,7 +34,7 @@ These form the foundation of the application.
 
 <details>
 <summary>
-## 🚧 Things That Need to Be Done (To-Dos)
+🚧 Things That Need to Be Done (To-Dos)
 </summary>
 
 ### 🔹 Data Operations
@@ -89,8 +89,11 @@ Backend:
 
 </details>
 
+<details>
+<summary>
+🔌 Backend Development
+</summary>
 
-## 🔌 Backend Development
 
 The backend is built using **FastAPI** and handles:
 - CSV ingestion
@@ -104,7 +107,7 @@ If you are working on backend-related features, refer to the backend directory/r
 `/backend` (or corresponding backend repository) -->
 
 > Note: The backend is intentionally stateless and does not persist data to any database.
-
+</details>
 ---
 
 ## 📣 Suggestions & Discussions
