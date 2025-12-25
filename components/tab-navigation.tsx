@@ -17,6 +17,8 @@ const tabs: Tab[] = [
   { id: "compare", label: "Compare" },
   { id: "data-ops", label: "Data Operations" },
   { id: "visualizations", label: "Visualizations" },
+  { id: "conversion", label: "Conversion" }, 
+
 ]
 
 interface TabNavigationProps {

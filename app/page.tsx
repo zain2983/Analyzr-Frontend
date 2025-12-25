@@ -12,6 +12,7 @@ import { DataOpsTab } from "@/components/tabs/data-ops-tab"
 import { DataCleaningTab } from "@/components/tabs/data-cleaning-tab"
 import { MergeJoinTab } from "@/components/tabs/merge-join-tab"
 import { TransformationTab } from "@/components/tabs/transformation-tab"
+import { ConversionTab } from "@/components/tabs/conversion-tab" 
 
 export type TabId =
   | "csv-basics"
@@ -22,6 +23,8 @@ export type TabId =
   | "data-cleaning"
   | "merge-join"
   | "transformation"
+  | "conversion" // ...added tab id
+
 
 export interface Dataset {
   name: string
@@ -83,6 +86,9 @@ export default function Page() {
           {activeTab === "compare" && <CompareTab datasets={datasets} />}
 
           {activeTab === "data-ops" && <DataOpsTab datasets={datasets} />}
+
+          {activeTab === "conversion" && <ConversionTab datasets={datasets} />} {/* ...render conversion tab */}
+
         </div>
       </main>
 
