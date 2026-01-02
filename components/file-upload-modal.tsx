@@ -6,10 +6,11 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { X, Loader2 } from "lucide-react"
 import type { Dataset } from "@/app/page"
+import { uploadDataset } from "@/lib/api/sql"
 
 interface FileUploadModalProps {
   datasets: Dataset[]
-  onDatasetsChange: (datasets: Dataset[]) => void
+  onDatasetsChange: (updater: (prev: Dataset[]) => Dataset[]) => void  // optional: accept setter
   onClose: () => void
   maxFiles?: number
 }
@@ -19,7 +20,6 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
   const [error, setError] = useState<string | null>(null)
 
   const handleFileUpload = async (file: File) => {
-    // Check max files limit
     if (datasets.length >= maxFiles) {
       setError(`Maximum ${maxFiles} files allowed`)
       return
@@ -29,41 +29,37 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
     setError(null)
 
     try {
-      // TODO: Replace with actual API call to FastAPI backend
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Upload to backend immediately. Backend returns { dataset_id, rows, columns }
+      const resp = await uploadDataset(file)
 
-      // Parse CSV locally for demo
-      const text = await file.text()
-      const lines = text.split("\n").filter((line) => line.trim())
-      const headers = lines[0].split(",").map((h) => h.trim())
-      const rows = lines.slice(1).map((line) =>
-        line.split(",").reduce((obj: Record<string, string>, val, idx) => {
-          obj[headers[idx]] = val.trim()
-          return obj
-        }, {}),
-      )
-
-      const newDataset: Dataset = {
-        name: file.name,
-        rows: rows.length,
-        columns: headers.length,
-        columnNames: headers,
-        data: rows,
+      if (!resp || !resp.dataset_id) {
+        throw new Error("Invalid response from backend")
       }
 
-      onDatasetsChange([...datasets, newDataset])
+      const newDataset: Dataset = {
+        id: resp.dataset_id,
+        name: file.name,
+        rows: resp.rows ?? 0,
+        columns: Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0),
+        columnNames: Array.isArray(resp.columns) ? resp.columns : [],
+      }
+
+      onDatasetsChange(prev => [...prev, newDataset])
 
       // Close modal after successful upload
       setTimeout(() => {
         onClose()
-      }, 500)
-    } catch (err) {
-      setError("Failed to upload CSV. Please check the file format.")
+      }, 300)
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to upload file. Check backend connection.")
       console.error(err)
     } finally {
       setIsLoading(false)
     }
   }
+
+
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

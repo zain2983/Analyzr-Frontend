@@ -18,8 +18,10 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const isAllowed = (fileName: string) => /\.(csv|json|xlsx)$/i.test(fileName)
+
   const handleFileChange = (file: File | null) => {
-    if (file && file.name.endsWith(".csv")) {
+    if (file && isAllowed(file.name)) {
       onFileSelect(file)
     }
   }
@@ -64,15 +66,15 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
       >
         <Upload className="mx-auto h-10 w-10 text-zinc-600" />
         <p className="mt-4 text-sm font-medium text-zinc-300">
-          {canUploadMore ? "Drag and drop your CSV file here" : `Maximum ${maxFiles} files reached`}
+          {canUploadMore ? "Drag and drop your file here" : `Maximum ${maxFiles} files reached`}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          {canUploadMore ? `or click to browse (${currentFileCount}/${maxFiles} files)` : "Remove a file to upload more"}
+          {canUploadMore ? `or click to browse (${currentFileCount}/${maxFiles} files). Accepted: CSV, JSON, XLSX` : "Remove a file to upload more"}
         </p>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.json,.xlsx"
           onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
           className="hidden"
           disabled={disabled || !canUploadMore}

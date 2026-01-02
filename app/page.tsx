@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { TabNavigation } from "@/components/tab-navigation"
 import { FileToolbar } from "@/components/file-toolbar"
 import { FileUploadModal } from "@/components/file-upload-modal"
@@ -13,6 +13,7 @@ import { DataCleaningTab } from "@/components/tabs/data-cleaning-tab"
 import { MergeJoinTab } from "@/components/tabs/merge-join-tab"
 import { TransformationTab } from "@/components/tabs/transformation-tab"
 import { ConversionTab } from "@/components/tabs/conversion-tab" 
+import { SQLTab } from "@/components/tabs/sql-tab"
 
 export type TabId =
   | "csv-basics"
@@ -23,10 +24,12 @@ export type TabId =
   | "data-cleaning"
   | "merge-join"
   | "transformation"
-  | "conversion" // ...added tab id
+  | "conversion" 
+  | "sql"
 
 
 export interface Dataset {
+  id: string
   name: string
   rows: number
   columns: number
@@ -38,6 +41,23 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<TabId>("csv-basics")
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+
+    const raw = sessionStorage.getItem("datasets")
+    if (raw) {
+      setDatasets(JSON.parse(raw))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    sessionStorage.setItem("datasets", JSON.stringify(datasets))
+  }, [datasets, mounted])
+
+  if (!mounted) return null
 
   const handleRemoveDataset = (index: number) => {
     const newDatasets = datasets.filter((_, i) => i !== index)
@@ -87,7 +107,9 @@ export default function Page() {
 
           {activeTab === "data-ops" && <DataOpsTab datasets={datasets} />}
 
-          {activeTab === "conversion" && <ConversionTab datasets={datasets} />} {/* ...render conversion tab */}
+          {activeTab === "conversion" && <ConversionTab datasets={datasets} />} 
+
+          {activeTab === "sql" && <SQLTab datasets={datasets} />}
 
         </div>
       </main>

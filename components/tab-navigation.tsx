@@ -15,9 +15,11 @@ const tabs: Tab[] = [
   // { id: "merge-join", label: "Merge & Join" },
   // { id: "transformation", label: "Transform" },
   { id: "compare", label: "Compare" },
-  { id: "data-ops", label: "Data Operations" },
+  // { id: "data-ops", label: "Data Operations" },
   { id: "visualizations", label: "Visualizations" },
   { id: "conversion", label: "Conversion" }, 
+  { id: "sql", label: "SQL" },
+
 
 ]
 
