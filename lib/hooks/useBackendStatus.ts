@@ -13,7 +13,7 @@ export function useBackendStatus(options: UseBackendStatusOptions = {}) {
     const {
         wakingThreshold = 3000,
         slowThreshold = 8000,
-        timeoutDuration = 30000,
+        timeoutDuration = 90000,
         onStatusChange,
     } = options
 
