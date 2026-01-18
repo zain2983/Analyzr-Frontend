@@ -61,25 +61,35 @@ export function EDATab({ datasets }: EDATabProps) {
 
   return (
     <div className="space-y-6">
-      <div>
+      {/* <div>
         <h2 className="text-2xl font-semibold text-zinc-100">Exploratory Data Analysis</h2>
         <p className="mt-1 text-sm text-zinc-400">Statistical summaries and data quality insights</p>
-      </div>
+      </div> */}
 
       {datasets.length > 1 && (
         <Card className="border-zinc-800 bg-zinc-900 p-4">
-          <label className="mb-2 block text-sm font-medium text-zinc-400">Select Dataset</label>
-          <select
-            value={selectedDatasetIndex}
-            onChange={(e) => setSelectedDatasetIndex(Number(e.target.value))}
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none"
-          >
+          <label className="mb-3 block text-sm font-medium text-zinc-300">Select Dataset</label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {datasets.map((ds, idx) => (
-              <option key={idx} value={idx}>
-                {ds.name} ({ds.rows} rows, {ds.columns} columns)
-              </option>
+              <button
+                key={idx}
+                onClick={() => setSelectedDatasetIndex(idx)}
+                className={`relative flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${selectedDatasetIndex === idx
+                  ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20"
+                  : "border-zinc-700 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-900"
+                  }`}
+              >
+                <Database className="h-4 w-4 flex-shrink-0 text-zinc-400" />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-zinc-100">{ds.name}</p>
+                  <p className="text-xs text-zinc-500">{ds.rows} rows, {ds.columns} cols</p>
+                </div>
+                {selectedDatasetIndex === idx && (
+                  <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500"></div>
+                )}
+              </button>
             ))}
-          </select>
+          </div>
         </Card>
       )}
 

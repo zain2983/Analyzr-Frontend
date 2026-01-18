@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { DataTable } from "@/components/data-table"
 import type { Dataset } from "@/app/page"
 import { runQuery } from "@/lib/api/sql"
+import { Database } from "lucide-react"
 
 interface SQLTabProps {
   datasets: Dataset[]
@@ -34,10 +35,13 @@ export function SQLTab({ datasets }: SQLTabProps) {
     try {
       console.log("runQuery payload:", { dataset_id: selectedDatasetId, query })
       const res = await runQuery(query, selectedDatasetId)
-      // Expect res.rows or an array of records
-      if (Array.isArray(res)) {
+
+      // Handle the new response format from backend
+      if (res && res.data && Array.isArray(res.data)) {
+        setResultRows(res.data)
+      } else if (Array.isArray(res)) {
         setResultRows(res)
-      } else if (res && res.rows) {
+      } else if (res && res.rows && Array.isArray(res.rows)) {
         setResultRows(res.rows)
       } else {
         setResultRows([])
@@ -70,26 +74,36 @@ export function SQLTab({ datasets }: SQLTabProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-zinc-100">S-scale SQL</h2>
+      {/* <div>
+        <h2 className="text-2xl font-semibold text-zinc-100">SQL</h2>
         <p className="mt-1 text-sm text-zinc-400">Run SQL against your uploaded dataset on the backend.</p>
-      </div>
+      </div> */}
 
-      <Card className="border-zinc-800 bg-zinc-900 p-4">
-        <label className="mb-2 block text-sm font-medium text-zinc-400">Select Dataset</label>
-        <select
-          value={selectedDatasetId}
-          onChange={(e) => setSelectedDatasetId(e.target.value)}
-          className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none"
-        >
+      <Card className="border-zinc-800 bg-zinc-900 p-6">
+        <label className="mb-3 block text-sm font-medium text-zinc-300">Select Dataset</label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 mb-4">
           {datasets.map((ds) => (
-            <option key={ds.id} value={ds.id}>
-              {ds.name} ({ds.rows} rows)
-            </option>
+            <button
+              key={ds.id}
+              onClick={() => setSelectedDatasetId(ds.id)}
+              className={`relative flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${selectedDatasetId === ds.id
+                ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20"
+                : "border-zinc-700 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-900"
+                }`}
+            >
+              <Database className="h-4 w-4 flex-shrink-0 text-zinc-400" />
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium text-zinc-100">{ds.name}</p>
+                <p className="text-xs text-zinc-500">{ds.rows} rows</p>
+              </div>
+              {selectedDatasetId === ds.id && (
+                <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500"></div>
+              )}
+            </button>
           ))}
-        </select>
+        </div>
 
-        <label className="mb-2 mt-4 block text-sm font-medium text-zinc-400">SQL</label>
+        <label className="mb-2 block text-sm font-medium text-zinc-400">SQL</label>
         <textarea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -107,7 +121,48 @@ export function SQLTab({ datasets }: SQLTabProps) {
 
       {resultRows.length > 0 && (
         <Card className="border-zinc-800 bg-zinc-900">
-          <DataTable headers={headers} rows={resultRows.map((r) => headers.map((h) => String(r[h] ?? "")))} />
+          <div className="p-4">
+            <h3 className="mb-4 text-lg font-semibold text-zinc-100">
+              Results ({resultRows.length} rows)
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    {headers.map((header) => (
+                      <th
+                        key={header}
+                        className="px-4 py-3 text-left text-sm font-semibold text-zinc-300 bg-zinc-950"
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {resultRows.map((row, rowIdx) => (
+                    <tr
+                      key={rowIdx}
+                      className="border-b border-zinc-800 hover:bg-zinc-950/50 transition-colors"
+                    >
+                      {headers.map((header) => (
+                        <td
+                          key={`${rowIdx}-${header}`}
+                          className="px-4 py-3 text-sm text-zinc-300"
+                        >
+                          {row[header] === null ? (
+                            <span className="text-zinc-500 italic">null</span>
+                          ) : (
+                            String(row[header])
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </Card>
       )}
     </div>

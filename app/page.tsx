@@ -12,8 +12,9 @@ import { DataOpsTab } from "@/components/tabs/data-ops-tab"
 import { DataCleaningTab } from "@/components/tabs/data-cleaning-tab"
 import { MergeJoinTab } from "@/components/tabs/merge-join-tab"
 import { TransformationTab } from "@/components/tabs/transformation-tab"
-import { ConversionTab } from "@/components/tabs/conversion-tab" 
+import { ConversionTab } from "@/components/tabs/conversion-tab"
 import { SQLTab } from "@/components/tabs/sql-tab"
+import { CheckCommasTab } from "@/components/tabs/check-commas-tab"
 
 export type TabId =
   | "csv-basics"
@@ -24,8 +25,9 @@ export type TabId =
   | "data-cleaning"
   | "merge-join"
   | "transformation"
-  | "conversion" 
+  | "conversion"
   | "sql"
+  | "check-commas"
 
 
 export interface Dataset {
@@ -107,9 +109,12 @@ export default function Page() {
 
           {activeTab === "data-ops" && <DataOpsTab datasets={datasets} />}
 
-          {activeTab === "conversion" && <ConversionTab datasets={datasets} />} 
+          {activeTab === "conversion" && <ConversionTab datasets={datasets} />}
 
           {activeTab === "sql" && <SQLTab datasets={datasets} />}
+
+          {activeTab === "check-commas" && <CheckCommasTab datasets={datasets} />}
+
 
         </div>
       </main>
