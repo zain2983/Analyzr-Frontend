@@ -1,4 +1,5 @@
 import { BACKEND_URL } from "@/lib/config"
+import { useBackendStatus, type BackendStatus } from "@/lib/hooks/useBackendStatus"
 
 export async function uploadDataset(file: File, datasetId?: string) {
     const url = `${BACKEND_URL}/api/upload`
@@ -42,6 +43,32 @@ export async function runQuery(query: string, datasetId?: string) {
     const json = await res.json()
     console.log(json)
     return json
+}
+
+// Add a wrapper function for uploads with cold start handling
+export async function uploadDatasetWithColdStartHandling(
+    file: File,
+    onStatusChange?: (status: BackendStatus) => void
+) {
+    const { startRequest, completeRequest, failRequest } = useBackendStatus({
+        onStatusChange,
+    })
+
+    const cleanup = startRequest()
+
+    try {
+        const response = await uploadDataset(file)
+        completeRequest()
+        return response
+    } catch (error) {
+        cleanup()
+        if (error instanceof TypeError && error.message.includes("fetch")) {
+            failRequest("network")
+        } else {
+            failRequest("error")
+        }
+        throw error
+    }
 }
 
 export default { uploadDataset, runQuery }

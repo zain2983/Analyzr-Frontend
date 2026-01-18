@@ -4,8 +4,11 @@ import { useState } from "react"
 import { FileUpload } from "@/components/file-upload"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { X, Loader2 } from "lucide-react"
+import { BackendStatusDisplay } from "@/components/ui/backend-status"
+import { X } from "lucide-react"
 import type { Dataset } from "@/app/page"
+import type { BackendStatus } from "@/lib/hooks/useBackendStatus"
+import { useBackendStatus } from "@/lib/hooks/useBackendStatus"
 import { uploadDataset } from "@/lib/api/sql"
 
 interface FileUploadModalProps {
@@ -16,8 +19,14 @@ interface FileUploadModalProps {
 }
 
 export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles = 5 }: FileUploadModalProps) {
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { status, elapsedTime, startRequest, completeRequest, failRequest } = useBackendStatus({
+    wakingThreshold: 3000,
+    slowThreshold: 8000,
+    timeoutDuration: 30000,
+  })
+
+  const isProcessing = status !== "idle"
 
   const handleFileUpload = async (files: File[]) => {
     const remainingSlots = maxFiles - datasets.length
@@ -27,8 +36,8 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
       return
     }
 
-    setIsLoading(true)
     setError(null)
+    const cleanup = startRequest()
 
     try {
       // Upload all files in parallel
@@ -50,6 +59,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         }
       })
 
+      completeRequest()
       onDatasetsChange(prev => [...prev, ...newDatasets])
 
       // Close modal after successful upload
@@ -57,10 +67,10 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         onClose()
       }, 300)
     } catch (err: any) {
+      cleanup()
+      failRequest(err instanceof TypeError ? "network" : "error")
       setError(err?.message ?? "Failed to upload files. Check backend connection.")
       console.error(err)
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -73,6 +83,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
           size="sm"
           variant="ghost"
           className="absolute right-4 top-4 h-8 w-8 p-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+          disabled={isProcessing}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -88,21 +99,16 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         {/* Upload Component */}
         <FileUpload
           onFileSelect={handleFileUpload}
-          disabled={isLoading}
+          disabled={isProcessing}
           maxFiles={maxFiles}
           currentFileCount={datasets.length}
         />
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="mt-4 flex items-center justify-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-zinc-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Processing files...</span>
-          </div>
-        )}
+        {/* Backend Status Display */}
+        <BackendStatusDisplay status={status} elapsedTime={elapsedTime} />
 
         {/* Error State */}
-        {error && (
+        {error && status === "error" && (
           <div className="mt-4 rounded-lg border border-red-900/50 bg-red-950/20 p-4">
             <p className="text-sm text-red-400">{error}</p>
           </div>
