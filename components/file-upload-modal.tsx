@@ -10,7 +10,7 @@ import { uploadDataset } from "@/lib/api/sql"
 
 interface FileUploadModalProps {
   datasets: Dataset[]
-  onDatasetsChange: (updater: (prev: Dataset[]) => Dataset[]) => void  // optional: accept setter
+  onDatasetsChange: (updater: (prev: Dataset[]) => Dataset[]) => void
   onClose: () => void
   maxFiles?: number
 }
@@ -19,9 +19,11 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleFileUpload = async (file: File) => {
-    if (datasets.length >= maxFiles) {
-      setError(`Maximum ${maxFiles} files allowed`)
+  const handleFileUpload = async (files: File[]) => {
+    const remainingSlots = maxFiles - datasets.length
+
+    if (files.length > remainingSlots) {
+      setError(`Can only upload ${remainingSlots} more file(s)`)
       return
     }
 
@@ -29,37 +31,38 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
     setError(null)
 
     try {
-      // Upload to backend immediately. Backend returns { dataset_id, rows, columns }
-      const resp = await uploadDataset(file)
+      // Upload all files in parallel
+      const uploadPromises = files.map(file => uploadDataset(file))
+      const responses = await Promise.all(uploadPromises)
 
-      if (!resp || !resp.dataset_id) {
-        throw new Error("Invalid response from backend")
-      }
+      // Validate responses
+      const newDatasets: Dataset[] = responses.map((resp, idx) => {
+        if (!resp || !resp.dataset_id) {
+          throw new Error(`Invalid response for file: ${files[idx].name}`)
+        }
 
-      const newDataset: Dataset = {
-        id: resp.dataset_id,
-        name: file.name,
-        rows: resp.rows ?? 0,
-        columns: Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0),
-        columnNames: Array.isArray(resp.columns) ? resp.columns : [],
-      }
+        return {
+          id: resp.dataset_id,
+          name: files[idx].name,
+          rows: resp.rows ?? 0,
+          columns: Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0),
+          columnNames: Array.isArray(resp.columns) ? resp.columns : [],
+        }
+      })
 
-      onDatasetsChange(prev => [...prev, newDataset])
+      onDatasetsChange(prev => [...prev, ...newDatasets])
 
       // Close modal after successful upload
       setTimeout(() => {
         onClose()
       }, 300)
     } catch (err: any) {
-      setError(err?.message ?? "Failed to upload file. Check backend connection.")
+      setError(err?.message ?? "Failed to upload files. Check backend connection.")
       console.error(err)
     } finally {
       setIsLoading(false)
     }
   }
-
-
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -76,9 +79,9 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
 
         {/* Title */}
         <div className="mb-6">
-          <h3 className="text-xl font-semibold text-zinc-100">Upload CSV File</h3>
+          <h3 className="text-xl font-semibold text-zinc-100">Upload Files</h3>
           <p className="mt-1 text-sm text-zinc-400">
-            Add a new CSV file to your workspace ({datasets.length}/{maxFiles} files)
+            Add new files to your workspace ({datasets.length}/{maxFiles} files)
           </p>
         </div>
 
@@ -94,7 +97,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         {isLoading && (
           <div className="mt-4 flex items-center justify-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-zinc-400">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Processing CSV file...</span>
+            <span className="text-sm">Processing files...</span>
           </div>
         )}
 

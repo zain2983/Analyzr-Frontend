@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import HelpButton from "./ui/helpbutton";
 
 interface FileUploadProps {
-  onFileSelect: (file: File) => void
+  onFileSelect: (files: File[]) => void
   disabled?: boolean
   maxFiles?: number
   currentFileCount?: number
@@ -20,17 +20,22 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
 
   const isAllowed = (fileName: string) => /\.(csv|json|xlsx)$/i.test(fileName)
 
-  const handleFileChange = (file: File | null) => {
-    if (file && isAllowed(file.name)) {
-      onFileSelect(file)
+  const handleFileChange = (files: FileList | null) => {
+    if (!files) return
+
+    const validFiles = Array.from(files)
+      .filter(file => isAllowed(file.name))
+      .slice(0, maxFiles - currentFileCount)
+
+    if (validFiles.length > 0) {
+      onFileSelect(validFiles)
     }
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    handleFileChange(file)
+    handleFileChange(e.dataTransfer.files)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -55,8 +60,6 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
         />
       </div>
 
-
-
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -66,7 +69,7 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
       >
         <Upload className="mx-auto h-10 w-10 text-zinc-600" />
         <p className="mt-4 text-sm font-medium text-zinc-300">
-          {canUploadMore ? "Drag and drop your file here" : `Maximum ${maxFiles} files reached`}
+          {canUploadMore ? "Drag and drop your files here" : `Maximum ${maxFiles} files reached`}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
           {canUploadMore ? `or click to browse (${currentFileCount}/${maxFiles} files). Accepted: CSV, JSON, XLSX` : "Remove a file to upload more"}
@@ -75,7 +78,8 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
           ref={fileInputRef}
           type="file"
           accept=".csv,.json,.xlsx"
-          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+          multiple
+          onChange={(e) => handleFileChange(e.target.files)}
           className="hidden"
           disabled={disabled || !canUploadMore}
         />
