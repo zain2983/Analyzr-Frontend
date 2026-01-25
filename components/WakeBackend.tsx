@@ -6,8 +6,6 @@ import { BACKEND_URL } from "@/lib/config"
 
 export default function WakeUpBackend() {
     useEffect(() => {
-        console.log("WakeUpBackend mounted"); // 👈 MUST appear in browser console
-
         const wakeServer = async () => {
             try {
                 console.log("Sending wake-up ping...");

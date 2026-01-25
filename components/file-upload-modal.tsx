@@ -4,11 +4,8 @@ import { useState } from "react"
 import { FileUpload } from "@/components/file-upload"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { BackendStatusDisplay } from "@/components/ui/backend-status"
 import { X } from "lucide-react"
 import type { Dataset } from "@/app/page"
-import type { BackendStatus } from "@/lib/hooks/useBackendStatus"
-import { useBackendStatus } from "@/lib/hooks/useBackendStatus"
 import { uploadDataset } from "@/lib/api/sql"
 
 interface FileUploadModalProps {
@@ -20,13 +17,7 @@ interface FileUploadModalProps {
 
 export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles = 5 }: FileUploadModalProps) {
   const [error, setError] = useState<string | null>(null)
-  const { status, elapsedTime, startRequest, completeRequest, failRequest } = useBackendStatus({
-    wakingThreshold: 3000,
-    slowThreshold: 8000,
-    timeoutDuration: 30000,
-  })
-
-  const isProcessing = status !== "idle"
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const handleFileUpload = async (files: File[]) => {
     const remainingSlots = maxFiles - datasets.length
@@ -37,7 +28,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
     }
 
     setError(null)
-    const cleanup = startRequest()
+    setIsProcessing(true)
 
     try {
       // Upload all files in parallel
@@ -59,7 +50,6 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         }
       })
 
-      completeRequest()
       onDatasetsChange(prev => [...prev, ...newDatasets])
 
       // Close modal after successful upload
@@ -67,10 +57,10 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         onClose()
       }, 300)
     } catch (err: any) {
-      cleanup()
-      failRequest(err instanceof TypeError ? "network" : "error")
       setError(err?.message ?? "Failed to upload files. Check backend connection.")
       console.error(err)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -104,11 +94,15 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
           currentFileCount={datasets.length}
         />
 
-        {/* Backend Status Display */}
-        <BackendStatusDisplay status={status} elapsedTime={elapsedTime} />
+        {/* Processing State */}
+        {isProcessing && (
+          <div className="mt-4 rounded-lg border border-blue-900/50 bg-blue-950/20 p-4">
+            <p className="text-sm text-blue-400">Processing file...</p>
+          </div>
+        )}
 
         {/* Error State */}
-        {error && status === "error" && (
+        {error && !isProcessing && (
           <div className="mt-4 rounded-lg border border-red-900/50 bg-red-950/20 p-4">
             <p className="text-sm text-red-400">{error}</p>
           </div>
