@@ -60,8 +60,8 @@ export function SQLTab({ datasets }: SQLTabProps) {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold text-zinc-100">S-scale SQL</h2>
-          <p className="mt-1 text-sm text-zinc-400">Upload a dataset to run SQL queries on the backend.</p>
+          <h2 className="text-2xl font-semibold text-zinc-100">SQL</h2>
+          <p className="mt-1 text-sm text-zinc-400">Upload a dataset to run SQL queries on.</p>
         </div>
         <Card className="border-zinc-800 bg-zinc-900 p-12">
           <div className="text-center">

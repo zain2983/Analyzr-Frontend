@@ -16,7 +16,7 @@ const tabs: Tab[] = [
   // { id: "transformation", label: "Transform" },
   { id: "compare", label: "Compare" },
   // { id: "data-ops", label: "Data Operations" },
-  { id: "visualizations", label: "Visualizations" },
+  // { id: "visualizations", label: "Visualizations" },
   // { id: "conversion", label: "Conversion" },
   { id: "sql", label: "SQL" },
   { id: "check-commas", label: "Check Commas" },
