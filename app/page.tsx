@@ -15,6 +15,7 @@ import { TransformationTab } from "@/components/tabs/transformation-tab"
 import { ConversionTab } from "@/components/tabs/conversion-tab"
 import { SQLTab } from "@/components/tabs/sql-tab"
 import { CheckCommasTab } from "@/components/tabs/check-commas-tab"
+import { BACKEND_URL } from "@/lib/config"
 
 export type TabId =
   | "csv-basics"
@@ -40,10 +41,22 @@ export interface Dataset {
 }
 
 export default function Page() {
+  const [backendStatus, setBackendStatus] = useState<"waking" | "ready" | "error">("waking")
+  const [elapsed, setElapsed] = useState(0)
   const [activeTab, setActiveTab] = useState<TabId>("csv-basics")
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    if (backendStatus !== "waking") return
+
+    const interval = setInterval(() => {
+      setElapsed((t) => t + 1)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [backendStatus])
 
   useEffect(() => {
     setMounted(true)
@@ -52,6 +65,21 @@ export default function Page() {
     if (raw) {
       setDatasets(JSON.parse(raw))
     }
+
+    const wakeServer = async () => {
+      try {
+        const res = await fetch(BACKEND_URL)
+        if (res.ok) {
+          setBackendStatus("ready")
+        } else {
+          setBackendStatus("error")
+        }
+      } catch {
+        setBackendStatus("error")
+      }
+    }
+
+    wakeServer()
   }, [])
 
   useEffect(() => {
@@ -73,6 +101,29 @@ export default function Page() {
         <div className="mx-auto flex h-auto max-w-7xl flex-col gap-4 px-4 py-4 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-0">
           {/* Title */}
           <h1 className="text-2xl font-semibold text-zinc-100 sm:text-3xl">Analyzr</h1>
+
+          <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-400">
+            {backendStatus === "waking" && (
+              <>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-500"></span>
+                Waking backend ({elapsed}s)
+              </>
+            )}
+
+            {backendStatus === "ready" && (
+              <>
+                <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                Backend ready
+              </>
+            )}
+
+            {backendStatus === "error" && (
+              <>
+                <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                Backend unreachable
+              </>
+            )}
+          </div>
 
           {/* Tabs */}
           <div className="overflow-x-auto">
