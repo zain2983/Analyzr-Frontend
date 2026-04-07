@@ -10,11 +10,11 @@ interface Tab {
 // Configuration-based tab definitions - easy to extend
 const tabs: Tab[] = [
   { id: "csv-basics", label: "CSV Basics" },
-  { id: "eda", label: "EDA" },
   // { id: "data-cleaning", label: "Data Cleaning" },
   // { id: "merge-join", label: "Merge & Join" },
   // { id: "transformation", label: "Transform" },
   { id: "compare", label: "Compare" },
+  { id: "eda", label: "EDA" },
   // { id: "data-ops", label: "Data Operations" },
   // { id: "visualizations", label: "Visualizations" },
   // { id: "conversion", label: "Conversion" },

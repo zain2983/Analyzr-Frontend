@@ -47,10 +47,10 @@ export function CheckCommasTab({ datasets }: CheckCommasTabProps) {
 
     return (
         <div className="space-y-6">
-            <div>
+            {/* <div>
                 <h2 className="text-2xl font-semibold text-zinc-100">Check Commas</h2>
                 <p className="mt-1 text-sm text-zinc-400">Run comma validation on your dataset.</p>
-            </div>
+            </div> */}
 
             <Card className="border-zinc-800 bg-zinc-900 p-6">
                 <div className="space-y-4">
@@ -62,8 +62,8 @@ export function CheckCommasTab({ datasets }: CheckCommasTabProps) {
                                     key={ds.id}
                                     onClick={() => setSelectedDatasetId(ds.id)}
                                     className={`relative flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${selectedDatasetId === ds.id
-                                            ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20"
-                                            : "border-zinc-700 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-900"
+                                        ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20"
+                                        : "border-zinc-700 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-900"
                                         }`}
                                 >
                                     <Database className="h-4 w-4 flex-shrink-0 text-zinc-400" />
