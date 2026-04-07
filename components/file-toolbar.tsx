@@ -28,13 +28,23 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, maxFiles
                   {datasets.map((dataset, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800/50 px-3 py-1.5"
+                      className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 w-[180px]"
                     >
-                      <FileText className="h-3.5 w-3.5 text-zinc-400" />
-                      <span className="text-sm text-zinc-200">{dataset.name}</span>
+                      {/* File icon + name */}
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
+                        <span
+                          className="text-sm text-zinc-200 truncate"
+                          title={dataset.name} // full name on hover
+                        >
+                          {dataset.name}
+                        </span>
+                      </div>
+
+                      {/* Remove button always at the right */}
                       <button
                         onClick={() => onRemoveDataset(index)}
-                        className="ml-1 text-zinc-400 transition-colors hover:text-zinc-100"
+                        className="ml-2 text-zinc-400 transition-colors hover:text-zinc-100 flex-shrink-0"
                         aria-label={`Remove ${dataset.name}`}
                       >
                         <X className="h-3.5 w-3.5" />

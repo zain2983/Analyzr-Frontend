@@ -144,7 +144,7 @@ export default function Page() {
       {/* Main Content */}
       <main className="pt-36 sm:pt-32">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-          {activeTab === "csv-basics" && <CSVBasicsTab datasets={datasets} />}
+          {activeTab === "csv-basics" && <CSVBasicsTab datasets={datasets} onDatasetsChange={setDatasets} />}
 
           {activeTab === "eda" && <EDATab datasets={datasets} />}
 

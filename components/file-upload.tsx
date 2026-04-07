@@ -55,7 +55,7 @@ export function FileUpload({ onFileSelect, disabled, maxFiles = 5, currentFileCo
       <div style={{ display: "flex", alignItems: "center" }}>
         <h3 style={{ margin: 0 }}>Upload files</h3>
         <HelpButton
-          message="Upload CSV, XLSX or JSON files here. You can drag & drop or use the picker. Accepted formats: CSV, XLSX. Small files are processed in-browser; large files are uploaded to the server."
+          message="Upload CSV, XLSX or JSON files here. You can drag & drop or use the picker. Accepted formats: CSV, XLSX."
           link="https://example.com/help#file-upload"
         />
       </div>
