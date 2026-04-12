@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import type { Dataset } from "@/app/page"
-import { uploadDataset } from "@/lib/api/sql"
+import { uploadDataset } from "@/lib/api/upload-dataset"
 
 interface FileUploadModalProps {
   datasets: Dataset[]
