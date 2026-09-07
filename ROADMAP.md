@@ -6,10 +6,11 @@ This tracks the next phase of frontend work for the CSV Utility Platform. It bui
 
 ## 1. Export
 
-- [ ] **Download results as CSV**
-  - Add a "Download CSV" action wherever a result table is rendered (SQL Tab query results, Compare Tab matrix, EDA/Data Ops outputs, etc.).
-  - Should work client-side (convert the in-memory `Record<string, any>[]` result to CSV and trigger a browser download) since the platform is explicitly stateless/in-memory — no backend round-trip needed for this.
-  - Reuse one shared helper (e.g. `lib/export/to-csv.ts`) instead of duplicating CSV-stringify logic per tab.
+- [ ] **Download the full dataset as CSV — backend-driven, not client-side**
+  - Decision: this must be a backend export, not a client-side re-serialization of whatever's on screen. The frontend never holds the full dataset — `/api/upload` only returns metadata (`rows`, `columns`, `columnNames`), and `/api/query` caps results at `result_df.head(100)` (`app/api/sql_query.py`). Exporting only what's rendered would silently produce a truncated/stale file on any dataset bigger than the preview, and diverges further as more backend-side mutation features (Data Cleaning, Merge/Join, Transform — see `CONTRIBUTING.md` to-dos) land and change the server-held `df` without the frontend ever seeing the full result.
+  - **Backend** (Analyzr-Backend): add an export endpoint, e.g. `GET /api/dataset/{dataset_id}/download`, that looks up `DATASETS[dataset_id]["df"]` via `dataset_manager.get_dataset()` and streams it back as `df.to_csv(index=False)` with `Content-Type: text/csv` and a `Content-Disposition: attachment; filename=...` header (FastAPI `StreamingResponse`/`Response`). Returns 404 the same way `sql_query.py` does if the id isn't found.
+  - **Frontend**: add `lib/api/download-dataset.ts` that hits that endpoint and triggers the browser download (`fetch` → `blob()` → `URL.createObjectURL`, same download-trigger mechanics already used in `conversion-tab.tsx`, just fed by a server response instead of a client-built string). Surface a "Download CSV" button whereever a dataset is selected (`FileToolbar`, `DatasetSummary`, and once it exists, the unified `DatasetSelector`) rather than per-result-table, since the export is of the dataset, not of a particular tab's view.
+  - Once the SQL Tab result set matters as its own exportable artifact (distinct from the underlying dataset), that can reuse the same backend pattern with a query-scoped endpoint later — not in scope for this first pass.
 
 ## 2. Upload
 
