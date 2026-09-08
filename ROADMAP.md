@@ -2,58 +2,132 @@
 
 This tracks the next phase of frontend work for the CSV Utility Platform. It builds on top of what's already documented in `CONTRIBUTING.md` ("Things Already Done" / existing to-dos) — this file is the more granular, actively-worked list for the upcoming milestone.
 
+Line references point at the state of the code as of this writing; treat them as "roughly here", not as anchors.
+
+**Ordering note:** Upload (JSON/XLSX) was previously item 2 and has been moved to item 5, directly before the broken-CSV work. This is a dependency ordering, not a demotion — see the note at the top of Section 5. Datasets moved up to item 2 because the selector unification it contains unblocks Compare Tab merges, rename, and any future per-dataset action.
+
 ---
 
-## 1. Export
+## 1. Export — mostly shipped
 
-- [ ] **Download the full dataset as CSV — backend-driven, not client-side**
-  - Decision: this must be a backend export, not a client-side re-serialization of whatever's on screen. The frontend never holds the full dataset — `/api/upload` only returns metadata (`rows`, `columns`, `columnNames`), and `/api/query` caps results at `result_df.head(100)` (`app/api/sql_query.py`). Exporting only what's rendered would silently produce a truncated/stale file on any dataset bigger than the preview, and diverges further as more backend-side mutation features (Data Cleaning, Merge/Join, Transform — see `CONTRIBUTING.md` to-dos) land and change the server-held `df` without the frontend ever seeing the full result.
-  - **Backend** (Analyzr-Backend): add an export endpoint, e.g. `GET /api/dataset/{dataset_id}/download`, that looks up `DATASETS[dataset_id]["df"]` via `dataset_manager.get_dataset()` and streams it back as `df.to_csv(index=False)` with `Content-Type: text/csv` and a `Content-Disposition: attachment; filename=...` header (FastAPI `StreamingResponse`/`Response`). Returns 404 the same way `sql_query.py` does if the id isn't found.
-  - **Frontend**: add `lib/api/download-dataset.ts` that hits that endpoint and triggers the browser download (`fetch` → `blob()` → `URL.createObjectURL`, same download-trigger mechanics already used in `conversion-tab.tsx`, just fed by a server response instead of a client-built string). Surface a "Download CSV" button whereever a dataset is selected (`FileToolbar`, `DatasetSummary`, and once it exists, the unified `DatasetSelector`) rather than per-result-table, since the export is of the dataset, not of a particular tab's view.
-  - Once the SQL Tab result set matters as its own exportable artifact (distinct from the underlying dataset), that can reuse the same backend pattern with a query-scoped endpoint later — not in scope for this first pass.
+- [x] **Download the full dataset as CSV — backend-driven, not client-side**
+  - Decision (still holds): this is a backend export, not a client-side re-serialization of what's on screen. The frontend never holds the full dataset — `/api/upload` returns only metadata (`dataset_id`, `rows`, `columns`), and `/api/query` caps its payload at `result_df.head(100)`. Exporting what's rendered would silently produce a truncated file on any dataset bigger than the preview, and would diverge further as backend-side mutation features (Data Cleaning, Merge/Join, Transform) land and change the server-held `df` without the frontend seeing the result.
+  - **Backend — done.** `app/api/download.py` exposes `GET /api/dataset/{dataset_id}/download`: looks the dataset up via `dataset_manager.get_dataset()`, 404s if absent, writes `df.to_csv(index=False)` into a `StringIO` and returns it as a `StreamingResponse` with `media_type="text/csv"` and a `Content-Disposition` attachment header. Mounted in `main.py` under the `/api` prefix.
+  - **Frontend — done.** `lib/api/download-dataset.ts` fetches that endpoint, converts to a `blob()`, and triggers the browser download through a temporary `<a download>` + `URL.createObjectURL` / `revokeObjectURL`. `components/file-toolbar.tsx` renders a per-dataset download button inside each file chip, with a `downloadingId` spinner so concurrent clicks are visibly distinct.
 
-## 2. Upload
+### Remaining gaps in this section
 
-- [ ] **JSON and XLSX upload support**
-  - `components/file-upload.tsx` already accepts `.csv,.json,.xlsx` on the `<input>` and filters by `/\.(csv|json|xlsx)$/i`, so the *frontend* dropzone already advertises this.
-  - What's missing: confirming/handling the backend's actual support for non-CSV files end-to-end (`lib/api/upload-dataset.ts` just POSTs the raw `File` to `/api/upload` regardless of type). Needs:
-    - Backend contract check (does `/api/upload` parse JSON/XLSX today, or only CSV?) — coordinate with [Analyzr-Backend](https://github.com/zain2983/Analyzr-Backend).
-    - Per-type error messaging in `FileUploadModal` if a format isn't supported yet, instead of a generic failure.
-    - Verify `Dataset` metadata (`rows`, `columns`, `columnNames`) is populated correctly for JSON (nested/array-of-objects) and XLSX (multi-sheet) inputs.
+- [ ] **The server-side filename is a UUID.** `download.py` sets `filename="{dataset_id}.csv"`. It only looks right in the browser because the frontend overrides it with `a.download = filename` from client-held `Dataset.name`. Any non-browser consumer (curl, a future API user) gets `9f3c…-….csv`. Either have the backend store the original filename at `create_dataset()` time and echo it in the header, or consciously document that naming is the frontend's job. Right now it's neither — it works by accident.
+- [ ] **Download failures are invisible.** `file-toolbar.tsx` catches the error and only `console.error`s it; the spinner stops and nothing else happens, which reads as "the download silently didn't work". `sonner` is already a dependency and `components/ui/sonner.tsx` exists — surface a toast. This matters most for the stale-id case in Section 2, where a 404 is the *expected* failure after a backend restart.
+- [ ] **No export of a SQL result set.** Distinct from exporting the dataset: `/api/query` truncates `data` to 100 rows, so a client-side export of the results table would silently drop everything past row 100. This needs a query-scoped backend endpoint (run the query, stream the full frame) rather than a frontend change. Not in scope for this pass, but don't ship a "download results" button without it.
+
+## 2. Datasets
+
+Ordered first because everything else in this file touches dataset selection, and the current inconsistency makes each of those touches a small migration of its own.
+
+- [ ] **Unify the dataset selector pattern**
+  - There are four different selector UIs for the same concept, across eight tabs:
+    - Card-grid buttons keyed by `dataset.id` — `sql-tab.tsx`, `check-commas-tab.tsx`
+    - Card-grid buttons keyed by array index — `eda-tab.tsx`
+    - shadcn `<Select>` keyed by `dataset.name` — `data-cleaning-tab.tsx`, `transformation-tab.tsx`, `merge-join-tab.tsx`
+    - Native `<select>` keyed by index — `conversion-tab.tsx`, `visualizations-tab.tsx`, `data-ops-tab.tsx`
+  - **Why `id` and not the other two:**
+    - *Name isn't unique.* Nothing stops a user uploading `sales.csv` twice — `file-upload-modal.tsx` takes the name straight from `files[idx].name` with no dedupe. `merge-join-tab.tsx` even uses `key={dataset.name}` as a React key, so a duplicate name produces duplicate keys and a selection that can't distinguish the two.
+    - *Index breaks on removal.* `handleRemoveDataset` in `app/page.tsx` does `datasets.filter((_, i) => i !== index)`, so every index above the removed one shifts down. An index-keyed tab holding `selectedDatasetIndex = 2` silently starts pointing at a different dataset — or past the end of the array — with no re-render signal that anything changed.
+    - *`id` is what the backend keys on.* `dataset_manager.DATASETS` is a dict of UUID → `{df, created_at}`, and every working endpoint (`/api/query`, `/api/check-commas`, `/api/dataset/{id}/download`) takes `dataset_id`. Selector state keyed by `id` maps 1:1 onto what any API call needs, with no lookup step that can fail.
+  - **Implementation:** one `components/dataset-selector.tsx` taking `value: string` (the id), `onChange: (id: string) => void`, `datasets: Dataset[]`, and a `variant: "grid" | "dropdown"` — the two shapes need to coexist, because the card grid suits tabs where picking a dataset *is* the page, and the dropdown suits the form-heavy tabs where it's one field among many. One component, two renderings, so migration doesn't force a visual redesign of six tabs at once.
+  - Migrate one tab per change. Start with `sql-tab.tsx` and `check-commas-tab.tsx` — they're already id-keyed, so they validate the component's API without also changing behavior. The index-keyed tabs are the ones carrying the actual bug, so they follow immediately.
+
+- [ ] **Reconcile stale dataset ids after a backend restart**
+  - Not previously on this roadmap, and it's the most user-visible dataset bug today.
+  - `app/page.tsx` rehydrates `datasets` from `sessionStorage` on mount. Those ids are UUIDs from `dataset_manager.DATASETS`, which is a plain module-level dict with no persistence — the backend is deliberately stateless per `CONTRIBUTING.md`.
+  - So any backend restart empties that dict while the browser tab keeps rendering the chips: a redeploy, or a free-tier spin-down — which is precisely the cold-start case that `components/WakeBackend.tsx` and the backend-status pill in `app/page.tsx` already exist to handle. The frontend knows the backend was asleep and still trusts the ids it cached.
+  - Every subsequent call then 404s with `"Dataset not found"`, surfaced as a raw status-and-JSON string, or as nothing at all in the download case.
+  - **Fix:** add `GET /api/datasets` returning the live id list (trivial — it's `list(DATASETS.keys())`). On mount, once the wake probe reports `ready`, diff cached ids against that list and mark the missing ones as stale: disable their actions, badge the chip, offer re-upload. Prefer marking over silently dropping — the user still wants to know *which* files they had.
+
+- [ ] **"Remove all datasets" action — and actually evict on the backend**
+  - `file-toolbar.tsx` supports removing one dataset at a time via `onRemoveDataset(index)`, and `app/page.tsx` handles it by filtering React state.
+  - **Nothing tells the backend.** `delete_dataset()` is defined in `app/core/dataset_manager.py` but no router calls it — grepping the backend, the only occurrence is the definition itself. Every "removed" dataset's DataFrame stays resident for the life of the process. With a 20MB upload cap and five slots, that's a slow leak that a long-lived instance will feel.
+  - So this is two changes: expose `DELETE /api/dataset/{dataset_id}` wrapping the existing `delete_dataset()`, add `lib/api/delete-dataset.ts`, and call it from *both* single-remove and clear-all. Treat it as best-effort — a 404 means it's already gone, which is the desired end state, so don't block the UI on it.
+  - The "Clear all" button goes next to the upload button in `file-toolbar.tsx`, behind a confirmation. `components/ui/alert-dialog.tsx` is already present; use it rather than `window.confirm`.
+
+- [ ] **Rename dataset**
+  - Cheaper than it looks: **the backend has no concept of a dataset name.** `create_dataset(df)` stores only `{df, created_at}` — the name exists purely on the client, set from `files[idx].name` in `file-upload-modal.tsx`. So rename is one `setDatasets` update, persisted for free through the existing `sessionStorage` effect, with no API call and no server migration.
+  - **But it must land after the selector unification**, because three API clients key operations by name rather than id: `data-cleaning.ts`, `transformation.ts`, and `merge-join.ts` all take `dataset_name` / `dataset_names` / `source_dataset` in their request bodies, and the corresponding tabs pass the selected *name* through. Renaming before that migration means an operation silently addresses a dataset that no longer answers to that name.
+  - Worth doing as part of the same change: **none of those three contracts are implemented yet.** They target `/api/clean/*`, `/api/transform/*`, and `/api/merge/*`, and `main.py` mounts only four routers — `upload`, `sql_query`, `check_commas_script`, `download`. Nothing on the backend implements the name-keyed contract, so switching those interfaces to `dataset_id` costs nothing today and gets progressively more expensive once the endpoints exist.
+  - Same neighborhood, same change: those three modules each define their own `const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"`, while every module that actually works imports `BACKEND_URL` from `lib/config.ts` — which is a hardcoded localhost string with the production URL sitting commented out beside it. Two sources of truth for the backend address, one of which is a comment. Consolidate on `lib/config.ts` and have it read the env var.
+  - UI: inline rename in `file-toolbar.tsx` chips and/or `dataset-summary.tsx`. Keep the original filename around (a `sourceName` field) so the download filename and any repair report can still refer to the file the user actually uploaded.
 
 ## 3. Compare Tab
 
-- [ ] **Fuzzy column matching + inline merge**
-  - `components/tabs/compare-tab.tsx` currently does exact-name matching only (`dataset.columnNames.includes(column)`) to build the presence matrix and the "unique columns" list.
-  - Add fuzzy matching (e.g. Levenshtein/`fuzzysort`) so near-duplicate columns across files (`customer_id` vs `cust_id`, `Email` vs `email_address`) are surfaced as likely-same-column suggestions instead of showing up as two separate "unique" rows.
-  - Let the user merge/rename these suggested pairs directly from the Compare Tab (updates the working column mapping for that dataset without leaving the page).
+- [ ] **Fuzzy column matching (detection)**
+  - `components/tabs/compare-tab.tsx` builds a `Set` of every column name across datasets, then tests presence with `dataset.columnNames.includes(column)` — exact and case-sensitive. `Email` and `email` are two unrelated rows in the matrix today, and both land in "unique columns", which is exactly the signal a user would read as "these files disagree".
+  - **No fuzzy dependency, hand-roll it.** `package.json` has no `fuzzysort` / `Fuse` / `leven`. The problem is small and bounded — at most 5 datasets, tens of columns each, short ASCII-ish strings — so a `lib/fuzzy-columns.ts` of a few dozen lines beats pulling in a general-purpose search library whose ranking model is tuned for a different problem (interactive prefix search over long documents).
+  - Layer the checks cheapest-first, and keep them separable so each can be tuned or disabled:
+    1. **Normalize** — lowercase, strip non-alphanumerics. Catches `Customer ID` / `customer_id` / `customerId`, which is likely the bulk of real-world cases, at exact-match cost.
+    2. **Token containment** — split on `_`, spaces, and camel boundaries; flag when one token set is a subset of the other. Catches `email` vs `email_address`, which normalization alone misses because the strings genuinely differ.
+    3. **Levenshtein ratio** on the normalized forms, threshold around 0.8. Catches abbreviations like `customer_id` vs `cust_id` that neither earlier layer gets. Run it last — it's the only quadratic-ish step, and by then most pairs are resolved.
+  - **Always present as suggestions, never auto-merge.** A wrong merge doesn't throw an error, it quietly tells the user two different columns are the same one — and the entire purpose of this tab is letting them trust a cross-file comparison. Show the matched pair with its score and let the user accept.
+
+- [ ] **Inline merge — deliberately split from detection**
+  - Merging two near-duplicate columns means renaming a column in the server-held `df`. There is no endpoint for that: `main.py` mounts upload, query, check-commas, and download, and none of them mutate.
+  - A frontend-only "merge" would mutate `Dataset.columnNames` and change nothing real — that field is never sent on any request, and the backend re-derives columns from its own `df` on every call. The Compare Tab would show a merge that no other tab or query agrees with.
+  - So: ship detection now (independently useful — it turns a wall of "unique" rows into a short list of likely matches), and hold merge until the transform pipeline from `CONTRIBUTING.md`'s to-dos exists. At that point this becomes a thin caller of `POST /api/transform/rename`, not a feature of its own.
+
 - [ ] **Hover preview of sample data**
-  - On hovering a column name in the presence matrix, show a small popover/tooltip with a few sample values from that column (first N non-null rows) so users can visually confirm a fuzzy match before merging.
-  - Likely reuses the `HoverCard` primitive already in `components/ui/hover-card.tsx`.
+  - Blocked on something not previously captured here: **the frontend holds no row data at all.** `Dataset.data` is declared optional in `app/page.tsx` and is never populated — `file-upload-modal.tsx` constructs each `Dataset` from the upload response, which carries only `dataset_id`, `rows`, and `columns`. (This is also why `eda-tab.tsx` computes its column stats over `dataset.data?.map(...) || []` and reports zeros for everything.)
+  - Two ways to get sample values: a new `GET /api/dataset/{id}/sample` endpoint, or reuse the shipped `/api/query` with `SELECT "col" FROM dataset WHERE "col" IS NOT NULL LIMIT 5`.
+  - **Prefer reusing `/api/query`** — it costs zero backend work. `sql_query.py` already registers the frame in DuckDB under both `data` and `dataset`, already normalizes `NaN` to `None` so the JSON is clean, and already 404s consistently. A dedicated sample endpoint would reimplement all three for no gain at this scale.
+  - Fetch lazily on hover-open, and cache per `dataset.id + column` in a `useRef` map so re-hovering the same header doesn't re-query. `components/ui/hover-card.tsx` and `@radix-ui/react-hover-card` are already installed.
+  - **Quote the column identifier** (`"col"`) when building that SQL. Column names come from arbitrary user files and routinely contain spaces, punctuation, or reserved words; an unquoted identifier is both a correctness bug and an injection seam. Escape embedded double-quotes by doubling them.
 
 ## 4. SQL Tab
 
-- [ ] **UI polish**
-  - `components/tabs/sql-tab.tsx` uses CodeMirror (`@uiw/react-codemirror` + `@codemirror/lang-sql`) with `autocompletion: true` already on — but autocompletion currently only knows the selected dataset's column names via `sql({ schema: { dataset: selectedDs.columnNames } })`.
-  - Improve layout/spacing around the query editor and results table (current layout is a single flat `Card`), and add clearer loading/error states than the inline red text.
-- [ ] **Smarter suggestions and autofill**
-  - Extend the schema passed to `sql()` with per-column type hints if the backend can supply them, so autocomplete can suggest more than just column names (e.g. templated `WHERE`/`GROUP BY` snippets).
-  - Consider a quick "starter query" picker (e.g. `SELECT * LIMIT 10`, `SELECT col, COUNT(*) GROUP BY col`) to reduce manual typing for common patterns.
+- [ ] **Fix the result count — a correctness bug, not polish**
+  - `sql_query.py` returns `rows: len(result_df)` (the true match count) alongside `data: result_df.head(100).to_dict(...)` (the capped payload).
+  - `sql-tab.tsx` reads `res.data` into `resultRows` and then renders the heading from `resultRows.length`. A query matching 5,000 rows displays **"Results (100 rows)"**.
+  - That's actively misleading — a user checking "how many records match this filter" gets a wrong answer with no indication it's truncated. Keep `res.rows` in state and render "Showing first 100 of 5,000". Do this before any layout work.
 
-## 5. Datasets
+- [ ] **Autocomplete: cover both table aliases, then add types**
+  - `sql-tab.tsx` builds the CodeMirror SQL extension with `schema: { dataset: selectedDs.columnNames }` and `defaultTable: "dataset"`. But the backend registers the frame under **two** names — `con.register("data", df)` and `con.register("dataset", df)` — so `SELECT * FROM data` is valid SQL that gets no completions. Add `data` to the schema map; it's a one-line fix that removes a silent dead end.
+  - Type hints need a backend change first: `/api/upload` returns `list(df.columns)` and nothing else. Adding `df.dtypes.astype(str).to_dict()` to that response is additive — existing clients ignore the new key — and gives the editor enough to annotate completions and to offer type-appropriate snippets (date range filters on datetime columns, aggregates on numerics).
 
-- [ ] **Unify the dataset selector pattern**
-  - Right now there are at least three different dataset-selector UIs across tabs for the same underlying concept:
-    - Card-grid buttons keyed by `dataset.id` (`sql-tab.tsx`, `check-commas-tab.tsx`)
-    - Card-grid buttons keyed by array index (`eda-tab.tsx`)
-    - shadcn `<Select>` keyed by `dataset.name` (`data-cleaning-tab.tsx`, `transformation-tab.tsx`, `merge-join-tab.tsx`)
-    - Native `<select>` keyed by index (`conversion-tab.tsx`, `visualizations-tab.tsx`)
-  - Consolidate into one shared `DatasetSelector` component (`components/dataset-selector.tsx`) that all tabs use, keyed consistently by `dataset.id` (not `name` or array index — names aren't guaranteed unique and index breaks when datasets are removed/reordered). Swap each tab over one at a time.
-- [ ] **"Remove all datasets" action**
-  - `components/file-toolbar.tsx` only supports removing one dataset at a time via `onRemoveDataset(index)`. Add a "Clear all" button next to the upload button (with a confirmation, since it's destructive) that resets the `datasets` state in `app/page.tsx` back to `[]`.
-- [ ] **Rename dataset**
-  - No rename affordance exists today — `dataset.name` is fixed at upload time from the original filename. Add inline rename (e.g. double-click or an edit icon in `file-toolbar.tsx` / `dataset-summary.tsx`) that updates `Dataset.name` in state.
-  - Since several tabs currently key selectors off `dataset.name` (see above), renaming should happen *after* or alongside the selector unification so a rename doesn't silently break an active selection elsewhere.
+- [ ] **Starter-query picker — and why it can't use `useState`**
+  - The editor is intentionally uncontrolled: the query text lives in `queryRef`, fed to CodeMirror as `defaultValue`, with a comment at the declaration explaining the reason — keeping it out of React state stops every keystroke re-rendering the tab.
+  - So inserting a starter query cannot be a `setQuery(...)` call; `defaultValue` is read once and won't re-apply. It needs an `EditorView` handle via `onCreateEditor`, then an explicit `view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: q } })`, *and* a write to `queryRef.current` so `execute()` sends what the user sees.
+  - Spelled out here because the obvious implementation is to lift the query into state, which would regress the exact typing-performance problem the ref was introduced to solve.
+  - Starter set worth having: `SELECT * FROM dataset LIMIT 10`, `SELECT col, COUNT(*) FROM dataset GROUP BY col ORDER BY 2 DESC`, and a null-audit query. Generate them against the selected dataset's real column names rather than shipping placeholder text.
+
+- [ ] **Reconsider `sanitizeQuery`**
+  - `sanitizeQuery` strips everything after the first `--` on each line, flattens newlines, and then rewrites a `LIMIT n WHERE ...` pattern into `WHERE ... LIMIT n` via regex.
+  - It has no notion of string literals, so `WHERE code = 'a--b'` is truncated to `WHERE code = 'a` and DuckDB rejects it with a parse error that points nowhere near the real cause. The `LIMIT`/`WHERE` rewrite is likewise guessing at intent and silently changing what the user typed.
+  - **Recommendation: delete the rewriting and send the query as-is.** DuckDB is the authority on whether the SQL is valid and already returns a precise message that `sql_query.py` surfaces as a 400 `detail`. Silently editing a user's query to make it parse is worse than an honest error. If comment-stripping turns out to be genuinely needed, do it with a single-pass scanner that tracks quote state — not line-wise `indexOf`.
+
+- [ ] **Error and loading presentation**
+  - Errors render as inline red text showing the raw throw from `lib/api/sql.ts`: `Query failed: 400 {"detail":"SQL error: ..."}`. Parse `detail` out of the JSON body in the API client and throw that alone, so the tab can show the DuckDB message without the status code and braces. The same fix applies to `upload-dataset.ts` and `download-dataset.ts`, which build error strings identically.
+  - Drop the `console.log` of every query payload and response in `sql-tab.tsx` and `lib/api/sql.ts` before this ships.
+  - Layout: the selector, editor, and run button share one flat `Card`, with results in a second. `react-resizable-panels` is already a dependency — a resizable split would let users grow the results pane, which matters for the wide tables this tab produces.
+
+## 5. Upload — JSON and XLSX support
+
+**Why this moved down:** not a priority drop. Everything below — dispatching on file type, inferring shape and dtypes, reporting per-format problems back to the user — is the same "detect → parse → normalize" seam that Section 6 builds properly. Landing JSON/XLSX first means writing that logic once for the new formats and then again, differently, for the repair pipeline. The two exceptions are the format-mismatch bug and the case-sensitivity bug below, which should be fixed now regardless of sequencing.
+
+- [ ] **The dropzone advertises formats the backend rejects — fix now**
+  - `components/file-upload.tsx` sets `accept=".csv,.json,.xlsx"` and filters with `/\.(csv|json|xlsx)$/i`, and the help text explicitly promises all three.
+  - `app/api/upload.py` rejects anything that isn't `.csv` with a 400 before reading a byte.
+  - A user dragging an `.xlsx` gets `Upload failed: 400 {"detail":"Only CSV files are allowed"}` rendered verbatim in the modal. Either gate the dropzone back to `.csv` until the backend catches up, or land the backend change first — but don't leave the UI promising something the API refuses.
+- [ ] **Case-sensitivity bug — fix regardless of this section's sequencing**
+  - The backend check is `file.filename.endswith(".csv")`, so `DATA.CSV` (a very normal export from Windows tooling) is rejected. The frontend's regex is case-insensitive, so the two sides disagree about what a valid file is. Use `Path(file.filename).suffix.lower()`.
+- [ ] **Backend format dispatch**
+  - `.csv` → `pd.read_csv`; `.json` → `pd.read_json` / `pd.json_normalize`; `.xlsx` → `pd.read_excel`.
+  - **`read_excel` requires `openpyxl`, which is not in `requirements.txt`** (currently: fastapi, uvicorn, pandas, duckdb, python-multipart). Pandas imports it lazily, so this fails at *request* time with an `ImportError`, not at boot — it would pass any import-level smoke test and then break in production on the first upload. Add it in the same change.
+  - **JSON shape:** an array of objects maps cleanly to a frame; a nested or envelope-wrapped document does not. Use `pd.json_normalize` for nesting, and reject non-record-shaped input with a specific message rather than producing a one-row frame whose cells are dicts — that "succeeds" and then breaks every downstream tab.
+  - **XLSX sheets:** `pd.read_excel(..., sheet_name=None)` returns a dict of frames. Decide explicitly rather than by default: first sheet with the chosen sheet name echoed in the response is the right v1; a sheet picker means a two-phase upload flow and a real UI change, so don't drift into it accidentally.
+  - **Size cap:** the 20MB check seeks the uploaded temp file. XLSX is zip-compressed, so a 20MB file can expand into a far larger frame in memory — worth a post-parse row/cell guard, especially given datasets are never evicted today (Section 2).
+- [ ] **Tighten the upload contract**
+  - `lib/api/upload-dataset.ts` sends an optional `dataset_id` form field that `upload.py` doesn't declare, so FastAPI silently discards it. Either implement client-supplied ids or remove the field — a parameter that looks supported but isn't will eventually be trusted by someone.
+  - Parse FastAPI's `detail` in `uploadDataset` and throw that, so `FileUploadModal` can render "XLSX files aren't supported yet" instead of a status code and a JSON blob.
+  - Verify `rows` / `columns` / `columnNames` populate correctly for each format. `file-upload-modal.tsx` currently tolerates `columns` being either an array *or* a number (`Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0)`) — defensive code around an unsettled response shape. Once the contract is pinned per format, pick one shape and drop the branch.
 
 ## 6. Handling Broken / Malformed CSV Files
 
@@ -82,43 +156,49 @@ Pulled together from both sources, the failure modes fall into four buckets:
    - Long numeric IDs auto-converted to scientific notation (`123456789012345` → `1.23457E+14`) — this one is especially nasty because it's silent data loss, not a parse error
    - Auto "helpful" date conversion changing the underlying value
 
-odileeds' guidance is really the *prevention* side of this same coin — one table per file, ISO dates, no summary/total rows mixed into the data, no units embedded in numeric cells — worth keeping in mind for our own CSV *export* feature (item 1 above) so we don't reintroduce these problems on the way out.
+odileeds' guidance is really the *prevention* side of this same coin — one table per file, ISO dates, no summary/total rows mixed into the data, no units embedded in numeric cells — worth keeping in mind for our own CSV *export* feature (Section 1) so we don't reintroduce these problems on the way out.
 
 ### Proposed approach: repair happens on upload, in the backend
 
-Looking at how upload currently works end to end: `components/file-upload.tsx` only validates the file *extension* client-side; the actual bytes are handed off untouched via `lib/api/upload-dataset.ts` (`uploadDataset`) to the FastAPI `/api/upload` endpoint. No CSV parsing happens in the browser today — which is the right foundation to build on, since fault-tolerant parsing needs `pandas`/`csv`/`chardet`-grade tooling that isn't practical to replicate in JS, and large/broken files are safer to process server-side than in-tab.
+Looking at how upload works end to end: `components/file-upload.tsx` only validates the file *extension* client-side; the bytes are handed off untouched via `lib/api/upload-dataset.ts` to the FastAPI `/api/upload` endpoint, which does a single unguarded `pd.read_csv(file.file)` — no encoding detection, no delimiter sniffing, no per-row error tolerance. One malformed row fails the entire upload with a generic `Invalid CSV file: ...`.
 
-So the plan is: **keep the frontend upload flow exactly as-is**, and add a repair stage inside the backend's `/api/upload` handler, between "file received" and "return dataset metadata":
+No CSV parsing happens in the browser today, which is the right foundation to build on: fault-tolerant parsing needs `pandas`/`csv`/`chardet`-grade tooling that isn't practical to replicate in JS, and large or broken files are safer to process server-side than in-tab.
+
+So the plan is: **keep the frontend upload flow as-is**, and add a repair stage inside the backend's `/api/upload` handler, between "file received" and "return dataset metadata":
 
 ```
 Upload → Detect (encoding/delimiter/quote char) → Fault-tolerant parse → Auto-repair → Schema inference → Normalize → Return metadata (+ repair report)
 ```
 
-Backend-side building blocks (tracked here for context, actual implementation is an Analyzr-Backend task):
-- **Detection**: `chardet.detect(file_bytes)` for encoding, `csv.Sniffer().sniff(sample)` for delimiter (falling back to `csv.get_dialect('excel')` if sniffing fails)
-- **Fault-tolerant parsing**: read row-by-row instead of failing the whole file on one bad row — pad short rows with nulls, merge cells back together when a row has too many columns (likely a broken quote), and re-join lines when a quote was opened but never closed before continuing to the next row
-- **Schema inference**: after repair, infer per-column types (int/float/date/string) with a confidence score, rather than treating everything as a string
-- **Normalization**: collapse the null-variant list (`NULL`, `N/A`, `-`, `""`, …) to one representation, strip thousands separators from numeric-looking text columns, and standardize date columns to ISO 8601
+Backend-side building blocks (tracked here for context; the implementation is an Analyzr-Backend task):
+- **Detection**: `chardet.detect(file_bytes)` for encoding, `csv.Sniffer().sniff(sample)` for delimiter (falling back to `csv.get_dialect('excel')` if sniffing fails). Note this means reading the bytes once up front rather than handing the file object straight to pandas — `upload.py` already seeks the file for its size check, so the read-then-parse shape is a small change.
+- **Fault-tolerant parsing**: read row-by-row instead of failing the whole file on one bad row — pad short rows with nulls, merge cells back together when a row has too many columns (usually a broken quote), and re-join lines when a quote was opened but never closed.
+- **Schema inference**: after repair, infer per-column types (int/float/date/string) with a confidence score, rather than treating everything as a string. This is the same dtype information Section 4 wants for SQL autocomplete — build it once and return it from `/api/upload` for both consumers.
+- **Normalization**: collapse the null-variant list (`NULL`, `N/A`, `-`, `""`, …) to one representation, strip thousands separators from numeric-looking text columns, and standardize date columns to ISO 8601.
+- Note there's already a narrow precedent for this in `app/api/check_commas_script.py`, which scans raw CSV text for lines with an odd number of `"` characters. That's the "unterminated quote" case from bucket 1, detected post-hoc as a separate user-invoked step. The repair pipeline should subsume that detection at ingest; keep the Check Commas tab as a report over the *repair* results rather than a second, independent implementation of the same scan.
 
 ### What the frontend needs once the backend can repair
 
-This is the part that's actually in-scope for this repo, and it's the reason this section belongs on the frontend roadmap:
+This is the part that's in-scope for this repo, and the reason this section belongs on the frontend roadmap:
 
 - [ ] **Surface a "repair report" after upload**, e.g. in `FileUploadModal` or as a follow-up toast/panel:
   > "Fixed 213 malformed rows · Detected encoding: UTF-16 → converted to UTF-8 · Repaired 54 broken quotes · Normalized 3 date formats"
-  This means extending the `uploadDataset` response contract (and the `Dataset` type in `app/page.tsx`) with a `repairReport` field the backend returns alongside `dataset_id`/`rows`/`columns`.
-- [ ] **"Repair preview" (nice-to-have, high trust value)**: a side-by-side of a handful of original-vs-fixed rows so users can verify what got changed before relying on the dataset. Only worth doing once the backend can return sample before/after rows.
-- [ ] **Distinguish "repaired with warnings" from "clean upload"** in the `FileToolbar` dataset chips (e.g. a small warning-triangle badge on a dataset that needed repair), so users know which files to double check.
-- [ ] Treat this as a dependency for the **CSV download** item (Section 1) and **JSON/XLSX upload** item (Section 2) — repaired/normalized data should be what gets exported, and the same detect → repair → normalize pipeline should apply regardless of source format.
+
+  This means extending the `uploadDataset` response contract and the `Dataset` type in `app/page.tsx` with a `repairReport` field. Since `Dataset` is persisted to `sessionStorage`, keep the report small and serializable — counts and short strings, not sample rows.
+- [ ] **"Repair preview" (nice-to-have, high trust value)**: a side-by-side of a handful of original-vs-fixed rows so users can verify what changed before relying on the dataset. Only worth doing once the backend can return sample before/after rows — and it should be fetched on demand rather than stuffed into the upload response, for the same sessionStorage-size reason.
+- [ ] **Distinguish "repaired with warnings" from "clean upload"** in the `FileToolbar` dataset chips (e.g. a small warning-triangle badge), so users know which files to double-check. The chips are already tight on space at a fixed 200px width — this likely lands as an icon next to the existing download and remove buttons.
+- [ ] Treat this as a dependency for **Section 5 (JSON/XLSX upload)** — the same detect → repair → normalize pipeline should apply regardless of source format — and as the guarantee that **Section 1's export** returns repaired, normalized data rather than the raw bytes as parsed.
 
 ---
 
 ### Suggested sequencing
 
-1. Dataset selector unification first — several other items (rename, Compare Tab merge) get simpler once there's one consistent `id`-based selector component.
-2. Datasets: remove-all + rename (small, self-contained, unblocks nothing else but is low risk).
-3. Broken CSV handling — backend repair pipeline + frontend repair-report surfacing. Do this before the two items below, since both should build on the repaired/normalized data path rather than the raw upload path.
-4. CSV download (now exports repaired/normalized data).
-5. Upload: JSON/XLSX (reuses the same detect → repair → normalize pipeline).
-6. Compare Tab fuzzy match + hover preview.
-7. SQL Tab UI/autocomplete polish.
+1. **Dataset selector unification** (Section 2) — several other items get simpler once there's one consistent `id`-based selector, and it's a prerequisite for rename.
+2. **Stale-id reconciliation + backend eviction** (Section 2) — both are small, both fix real breakage today, and neither depends on anything else.
+3. **Rename + clear-all** (Section 2) — low risk once 1 and 2 are in.
+4. **SQL Tab correctness fixes** (Section 4: the 100-row count, the `data` table alias, dropping `sanitizeQuery`'s rewriting) — independent of everything above, and they're bugs rather than features.
+5. **Compare Tab fuzzy detection + hover preview** (Section 3) — detection is self-contained; the preview reuses the shipped `/api/query` endpoint.
+6. **Broken CSV handling** (Section 6) — the backend repair pipeline plus frontend repair-report surfacing. Do this before item 7, since JSON/XLSX should build on the repaired path rather than the raw one, and its schema inference also feeds SQL autocomplete type hints.
+7. **Upload: JSON/XLSX** (Section 5) — reuses the same detect → repair → normalize pipeline. The format-mismatch and case-sensitivity bugs in that section are exceptions: fix them immediately, they don't need to wait.
+8. **SQL Tab polish** (Section 4: layout, starter queries, type-aware autocomplete) — the type hints depend on Section 6's schema inference.
+9. **Compare Tab inline merge** (Section 3) — blocked on a backend transform/rename endpoint that doesn't exist yet.
