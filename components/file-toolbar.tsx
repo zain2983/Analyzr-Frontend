@@ -2,19 +2,31 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Plus, X, FileText, Download, Loader2 } from "lucide-react"
+import { Plus, X, FileText, Download, Loader2, AlertTriangle, Trash2 } from "lucide-react"
 import type { Dataset } from "@/app/page"
 import { cn } from "@/lib/utils"
 import { downloadDataset } from "@/lib/api/download-dataset"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface FileToolbarProps {
   datasets: Dataset[]
   onUploadClick: () => void
-  onRemoveDataset: (index: number) => void
+  onRemoveDataset: (id: string) => void
+  onClearAll: () => void
   maxFiles?: number
 }
 
-export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, maxFiles = 5 }: FileToolbarProps) {
+export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, onClearAll, maxFiles = 5 }: FileToolbarProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const handleDownload = async (dataset: Dataset) => {
@@ -40,17 +52,29 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, maxFiles
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-400">Files:</span>
                 <div className="flex gap-2">
-                  {datasets.map((dataset, index) => (
+                  {datasets.map((dataset) => (
                     <div
-                      key={index}
-                      className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 w-[200px]"
+                      key={dataset.id}
+                      className={cn(
+                        "flex items-center justify-between rounded-md border px-3 py-1.5 w-[200px]",
+                        dataset.stale
+                          ? "border-yellow-600/50 bg-yellow-500/5"
+                          : "border-zinc-700 bg-zinc-800/50",
+                      )}
                     >
                       {/* File icon + name */}
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <FileText className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
+                        {dataset.stale ? (
+                          <AlertTriangle
+                            className="h-3.5 w-3.5 flex-shrink-0 text-yellow-500"
+                            aria-label="No longer on server"
+                          />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
+                        )}
                         <span
                           className="text-sm text-zinc-200 truncate"
-                          title={dataset.name} // full name on hover
+                          title={dataset.stale ? `${dataset.name} — no longer on server, re-upload to use` : dataset.name}
                         >
                           {dataset.name}
                         </span>
@@ -60,10 +84,10 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, maxFiles
                         {/* Download button */}
                         <button
                           onClick={() => handleDownload(dataset)}
-                          disabled={downloadingId === dataset.id}
-                          className="text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50"
+                          disabled={downloadingId === dataset.id || dataset.stale}
+                          className="text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50 disabled:hover:text-zinc-400"
                           aria-label={`Download ${dataset.name} as CSV`}
-                          title="Download CSV"
+                          title={dataset.stale ? "Unavailable — no longer on server" : "Download CSV"}
                         >
                           {downloadingId === dataset.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -74,7 +98,7 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, maxFiles
 
                         {/* Remove button */}
                         <button
-                          onClick={() => onRemoveDataset(index)}
+                          onClick={() => onRemoveDataset(dataset.id)}
                           className="text-zinc-400 transition-colors hover:text-zinc-100"
                           aria-label={`Remove ${dataset.name}`}
                         >
@@ -88,24 +112,56 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, maxFiles
             )}
           </div>
 
-          {/* Upload Button */}
-          <Button
-            onClick={onUploadClick}
-            disabled={datasets.length >= maxFiles}
-            size="sm"
-            className={cn(
-              "shrink-0",
-              datasets.length >= maxFiles
-                ? "cursor-not-allowed bg-zinc-800/50 text-zinc-600"
-                : "bg-zinc-800 text-zinc-100 hover:bg-zinc-700",
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Clear All Button */}
+            {datasets.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    Clear all
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove all datasets?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This removes all {datasets.length} uploaded dataset{datasets.length > 1 ? "s" : ""} from this
+                      session and evicts them on the backend. This can't be undone — you'll need to re-upload to use
+                      them again.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onClearAll}>Remove all</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Upload CSV
-            <span className="ml-2 text-xs text-zinc-400">
-              ({datasets.length}/{maxFiles})
-            </span>
-          </Button>
+
+            {/* Upload Button */}
+            <Button
+              onClick={onUploadClick}
+              disabled={datasets.length >= maxFiles}
+              size="sm"
+              className={cn(
+                "shrink-0",
+                datasets.length >= maxFiles
+                  ? "cursor-not-allowed bg-zinc-800/50 text-zinc-600"
+                  : "bg-zinc-800 text-zinc-100 hover:bg-zinc-700",
+              )}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Upload CSV
+              <span className="ml-2 text-xs text-zinc-400">
+                ({datasets.length}/{maxFiles})
+              </span>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

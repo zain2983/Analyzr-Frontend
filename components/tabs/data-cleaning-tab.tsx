@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Droplet, Copy, Type, ALargeSmall } from "lucide-react"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface DataCleaningTabProps {
   datasets: Dataset[]
 }
 
 export function DataCleaningTab({ datasets }: DataCleaningTabProps) {
-  const [selectedDataset, setSelectedDataset] = useState<string>("")
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>("")
   const [activeOperation, setActiveOperation] = useState<string>("")
 
   if (datasets.length === 0) {
@@ -38,19 +39,12 @@ export function DataCleaningTab({ datasets }: DataCleaningTabProps) {
       {/* Dataset Selector */}
       {datasets.length > 1 && (
         <Card className="border-zinc-800 bg-zinc-900 p-4">
-          <Label className="text-sm text-zinc-400">Select Dataset</Label>
-          <Select value={selectedDataset} onValueChange={setSelectedDataset}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
-              <SelectValue placeholder="Choose a dataset" />
-            </SelectTrigger>
-            <SelectContent>
-              {datasets.map((dataset, idx) => (
-                <SelectItem key={idx} value={dataset.name}>
-                  {dataset.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DatasetSelector
+            datasets={datasets}
+            value={selectedDatasetId}
+            onChange={setSelectedDatasetId}
+            variant="dropdown"
+          />
         </Card>
       )}
 
@@ -77,31 +71,31 @@ export function DataCleaningTab({ datasets }: DataCleaningTabProps) {
 
       {/* Operation Forms */}
       {activeOperation === "fill-nulls" && (
-        <FillNullsForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+        <FillNullsForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
       {activeOperation === "remove-duplicates" && (
-        <RemoveDuplicatesForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+        <RemoveDuplicatesForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
       {activeOperation === "fix-types" && (
-        <FixDataTypesForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+        <FixDataTypesForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
       {activeOperation === "clean-strings" && (
-        <CleanStringsForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+        <CleanStringsForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
     </div>
   )
 }
 
-function FillNullsForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function FillNullsForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [column, setColumn] = useState("")
   const [method, setMethod] = useState("mean")
   const [customValue, setCustomValue] = useState("")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Fill nulls:", { dataset, column, method, customValue })
+    console.log("[v0] Fill nulls:", { dataset: currentDataset?.name, column, method, customValue })
     // TODO: Call API function from lib/api/data-cleaning.ts
   }
 
@@ -163,15 +157,15 @@ function FillNullsForm({ dataset, datasets }: { dataset: string; datasets: Datas
   )
 }
 
-function RemoveDuplicatesForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function RemoveDuplicatesForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
   const [keep, setKeep] = useState<"first" | "last">("first")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Remove duplicates:", { dataset, selectedColumns, keep })
+    console.log("[v0] Remove duplicates:", { dataset: currentDataset?.name, selectedColumns, keep })
     // TODO: Call API function from lib/api/data-cleaning.ts
   }
 
@@ -224,15 +218,15 @@ function RemoveDuplicatesForm({ dataset, datasets }: { dataset: string; datasets
   )
 }
 
-function FixDataTypesForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function FixDataTypesForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [column, setColumn] = useState("")
   const [targetType, setTargetType] = useState("string")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Fix data types:", { dataset, column, targetType })
+    console.log("[v0] Fix data types:", { dataset: currentDataset?.name, column, targetType })
     // TODO: Call API function from lib/api/data-cleaning.ts
   }
 
@@ -279,11 +273,11 @@ function FixDataTypesForm({ dataset, datasets }: { dataset: string; datasets: Da
   )
 }
 
-function CleanStringsForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function CleanStringsForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [column, setColumn] = useState("")
   const [operations, setOperations] = useState<string[]>([])
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const availableOps = [
@@ -294,7 +288,7 @@ function CleanStringsForm({ dataset, datasets }: { dataset: string; datasets: Da
   ]
 
   const handleApply = () => {
-    console.log("[v0] Clean strings:", { dataset, column, operations })
+    console.log("[v0] Clean strings:", { dataset: currentDataset?.name, column, operations })
     // TODO: Call API function from lib/api/data-cleaning.ts
   }
 

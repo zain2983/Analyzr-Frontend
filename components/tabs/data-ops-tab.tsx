@@ -1,20 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { Dataset } from "@/app/page"
 import { AlertCircle, List, Layers, Hash, Filter, SortAsc, BarChart3 } from "lucide-react"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface DataOpsTabProps {
   datasets: Dataset[]
 }
 
 export function DataOpsTab({ datasets }: DataOpsTabProps) {
-  const [selectedDataset, setSelectedDataset] = useState<number>(0)
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(datasets[0]?.id ?? "")
   const [selectedColumn, setSelectedColumn] = useState<string>("")
   const [result, setResult] = useState<any>(null)
   const [operation, setOperation] = useState<string>("")
+
+  useEffect(() => {
+    if (!datasets.find((d) => d.id === selectedDatasetId)) {
+      setSelectedDatasetId(datasets[0]?.id ?? "")
+    }
+  }, [datasets])
 
   if (datasets.length === 0) {
     return (
@@ -34,7 +41,7 @@ export function DataOpsTab({ datasets }: DataOpsTabProps) {
     )
   }
 
-  const currentDataset = datasets[selectedDataset]
+  const currentDataset = datasets.find((d) => d.id === selectedDatasetId) ?? datasets[0]
 
   // Operation handlers
   const showDistinctValues = () => {
@@ -188,22 +195,16 @@ export function DataOpsTab({ datasets }: DataOpsTabProps) {
       {/* Dataset and Column Selection */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-zinc-800 bg-zinc-900 p-4">
-          <label className="mb-2 block text-sm font-medium text-zinc-400">Select Dataset</label>
-          <select
-            value={selectedDataset}
-            onChange={(e) => {
-              setSelectedDataset(Number(e.target.value))
+          <DatasetSelector
+            datasets={datasets}
+            value={selectedDatasetId}
+            onChange={(id) => {
+              setSelectedDatasetId(id)
               setSelectedColumn("")
               setResult(null)
             }}
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none"
-          >
-            {datasets.map((dataset, idx) => (
-              <option key={idx} value={idx}>
-                {dataset.name} ({dataset.rows} rows, {dataset.columns} columns)
-              </option>
-            ))}
-          </select>
+            variant="dropdown"
+          />
         </Card>
 
         <Card className="border-zinc-800 bg-zinc-900 p-4">

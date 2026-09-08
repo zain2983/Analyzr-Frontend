@@ -2,13 +2,16 @@
 
 import { useState, useRef } from "react"
 import type { Dataset } from "@/app/page"
+import { DatasetSelector } from "@/components/dataset-selector"
+
+const NONE = "none"
 
 export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
   const [direction, setDirection] = useState<"csv2json" | "json2csv">("csv2json")
   const [delimiter, setDelimiter] = useState(",")
   const [uploadedText, setUploadedText] = useState("")
   const [uploadedType, setUploadedType] = useState<"csv" | "json" | "">("")
-  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState<number | "none">("none")
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(NONE)
   const [outputText, setOutputText] = useState("")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -31,14 +34,14 @@ export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (f) {
-      setSelectedDatasetIndex("none")
+      setSelectedDatasetId(NONE)
       readFile(f)
     }
   }
 
   const getInputTextAndType = () => {
-    if (selectedDatasetIndex !== "none") {
-      const ds = datasets[selectedDatasetIndex]
+    if (selectedDatasetId !== NONE) {
+      const ds = datasets.find((d) => d.id === selectedDatasetId)
       if (!ds) return { text: "", type: "" }
       // if dataset has data array, JSON is natural
       if (ds.data) return { text: JSON.stringify(ds.data, null, 2), type: "json" }
@@ -130,26 +133,20 @@ export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
       <div className="space-y-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="text-lg font-medium">Source</h2>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-zinc-300">Choose existing dataset</label>
-          <select
-            className="rounded bg-zinc-800 px-3 py-2"
-            value={selectedDatasetIndex}
-            onChange={(e) => {
-              const v = e.target.value
-              setUploadedText("")
-              setUploadedType("")
-              setSelectedDatasetIndex(v === "none" ? "none" : Number(v))
-            }}
-          >
-            <option value="none">— Upload / Paste —</option>
-            {datasets.map((d, i) => (
-              <option key={i} value={i}>
-                {d.name} ({d.rows}×{d.columns})
-              </option>
-            ))}
-          </select>
-        </div>
+        <DatasetSelector
+          datasets={datasets}
+          value={selectedDatasetId}
+          onChange={(id) => {
+            setUploadedText("")
+            setUploadedType("")
+            setSelectedDatasetId(id)
+          }}
+          variant="dropdown"
+          label="Choose existing dataset"
+          allowNone
+          noneValue={NONE}
+          noneLabel="— Upload / Paste —"
+        />
 
         <div className="flex flex-col gap-2">
           <label className="text-sm text-zinc-300">Upload file (.csv or .json)</label>

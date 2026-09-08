@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RotateCw, Calculator, Split, Combine, Calendar } from "lucide-react"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface TransformationTabProps {
   datasets: Dataset[]
 }
 
 export function TransformationTab({ datasets }: TransformationTabProps) {
-  const [selectedDataset, setSelectedDataset] = useState<string>("")
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>("")
   const [activeOperation, setActiveOperation] = useState<string>("")
 
   if (datasets.length === 0) {
@@ -39,19 +40,12 @@ export function TransformationTab({ datasets }: TransformationTabProps) {
       {/* Dataset Selector */}
       {datasets.length > 1 && (
         <Card className="border-zinc-800 bg-zinc-900 p-4">
-          <Label className="text-sm text-zinc-400">Select Dataset</Label>
-          <Select value={selectedDataset} onValueChange={setSelectedDataset}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
-              <SelectValue placeholder="Choose a dataset" />
-            </SelectTrigger>
-            <SelectContent>
-              {datasets.map((dataset, idx) => (
-                <SelectItem key={idx} value={dataset.name}>
-                  {dataset.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DatasetSelector
+            datasets={datasets}
+            value={selectedDatasetId}
+            onChange={setSelectedDatasetId}
+            variant="dropdown"
+          />
         </Card>
       )}
 
@@ -77,33 +71,37 @@ export function TransformationTab({ datasets }: TransformationTabProps) {
       </div>
 
       {/* Operation Forms */}
-      {activeOperation === "pivot" && <PivotForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />}
-      {activeOperation === "calculate" && (
-        <CalculateForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+      {activeOperation === "pivot" && (
+        <PivotForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
-      {activeOperation === "split" && <SplitForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />}
+      {activeOperation === "calculate" && (
+        <CalculateForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
+      )}
+      {activeOperation === "split" && (
+        <SplitForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
+      )}
       {activeOperation === "combine" && (
-        <CombineForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+        <CombineForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
       {activeOperation === "parse-date" && (
-        <ParseDateForm dataset={selectedDataset || datasets[0].name} datasets={datasets} />
+        <ParseDateForm datasetId={selectedDatasetId || datasets[0].id} datasets={datasets} />
       )}
     </div>
   )
 }
 
-function PivotForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function PivotForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [mode, setMode] = useState<"pivot" | "unpivot">("pivot")
   const [indexColumn, setIndexColumn] = useState("")
   const [columnsColumn, setColumnsColumn] = useState("")
   const [valuesColumn, setValuesColumn] = useState("")
   const [aggFunc, setAggFunc] = useState("sum")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Pivot:", { dataset, mode, indexColumn, columnsColumn, valuesColumn, aggFunc })
+    console.log("[v0] Pivot:", { dataset: currentDataset?.name, mode, indexColumn, columnsColumn, valuesColumn, aggFunc })
     // TODO: Call API function from lib/api/transformation.ts
   }
 
@@ -200,15 +198,15 @@ function PivotForm({ dataset, datasets }: { dataset: string; datasets: Dataset[]
   )
 }
 
-function CalculateForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function CalculateForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [newColumnName, setNewColumnName] = useState("")
   const [expression, setExpression] = useState("")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Calculate:", { dataset, newColumnName, expression })
+    console.log("[v0] Calculate:", { dataset: currentDataset?.name, newColumnName, expression })
     // TODO: Call API function from lib/api/transformation.ts
   }
 
@@ -245,16 +243,16 @@ function CalculateForm({ dataset, datasets }: { dataset: string; datasets: Datas
   )
 }
 
-function SplitForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function SplitForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [column, setColumn] = useState("")
   const [delimiter, setDelimiter] = useState(",")
   const [newColumnNames, setNewColumnNames] = useState("")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Split:", { dataset, column, delimiter, newColumnNames })
+    console.log("[v0] Split:", { dataset: currentDataset?.name, column, delimiter, newColumnNames })
     // TODO: Call API function from lib/api/transformation.ts
   }
 
@@ -306,16 +304,16 @@ function SplitForm({ dataset, datasets }: { dataset: string; datasets: Dataset[]
   )
 }
 
-function CombineForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function CombineForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
   const [newColumnName, setNewColumnName] = useState("")
   const [separator, setSeparator] = useState(" ")
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const handleApply = () => {
-    console.log("[v0] Combine:", { dataset, selectedColumns, newColumnName, separator })
+    console.log("[v0] Combine:", { dataset: currentDataset?.name, selectedColumns, newColumnName, separator })
     // TODO: Call API function from lib/api/transformation.ts
   }
 
@@ -373,12 +371,12 @@ function CombineForm({ dataset, datasets }: { dataset: string; datasets: Dataset
   )
 }
 
-function ParseDateForm({ dataset, datasets }: { dataset: string; datasets: Dataset[] }) {
+function ParseDateForm({ datasetId, datasets }: { datasetId: string; datasets: Dataset[] }) {
   const [column, setColumn] = useState("")
   const [format, setFormat] = useState("")
   const [extract, setExtract] = useState<string[]>([])
 
-  const currentDataset = datasets.find((d) => d.name === dataset)
+  const currentDataset = datasets.find((d) => d.id === datasetId)
   const columns = currentDataset?.columnNames || []
 
   const extractOptions = [
@@ -389,7 +387,7 @@ function ParseDateForm({ dataset, datasets }: { dataset: string; datasets: Datas
   ]
 
   const handleApply = () => {
-    console.log("[v0] Parse Date:", { dataset, column, format, extract })
+    console.log("[v0] Parse Date:", { dataset: currentDataset?.name, column, format, extract })
     // TODO: Call API function from lib/api/transformation.ts
   }
 

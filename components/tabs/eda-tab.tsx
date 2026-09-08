@@ -4,14 +4,21 @@ import { Card } from "@/components/ui/card"
 import type { Dataset } from "@/app/page"
 import { DataTable } from "@/components/data-table"
 import { AlertCircle, Database, Hash, FileText } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface EDATabProps {
   datasets: Dataset[]
 }
 
 export function EDATab({ datasets }: EDATabProps) {
-  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState<number>(0)
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(datasets[0]?.id ?? "")
+
+  useEffect(() => {
+    if (!datasets.find((d) => d.id === selectedDatasetId)) {
+      setSelectedDatasetId(datasets[0]?.id ?? "")
+    }
+  }, [datasets])
 
   if (datasets.length === 0) {
     return (
@@ -30,7 +37,7 @@ export function EDATab({ datasets }: EDATabProps) {
     )
   }
 
-  const dataset = datasets[selectedDatasetIndex]
+  const dataset = datasets.find((d) => d.id === selectedDatasetId) ?? datasets[0]
 
   // TODO: Replace with actual API call to FastAPI backend
   // const response = await fetch(`/api/dataset/eda?name=${dataset.name}`)
@@ -68,28 +75,12 @@ export function EDATab({ datasets }: EDATabProps) {
 
       {datasets.length > 1 && (
         <Card className="border-zinc-800 bg-zinc-900 p-4">
-          <label className="mb-3 block text-sm font-medium text-zinc-300">Select Dataset</label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-            {datasets.map((ds, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedDatasetIndex(idx)}
-                className={`relative flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${selectedDatasetIndex === idx
-                  ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20"
-                  : "border-zinc-700 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-900"
-                  }`}
-              >
-                <Database className="h-4 w-4 flex-shrink-0 text-zinc-400" />
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-zinc-100">{ds.name}</p>
-                  <p className="text-xs text-zinc-500">{ds.rows} rows, {ds.columns} cols</p>
-                </div>
-                {selectedDatasetIndex === idx && (
-                  <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500"></div>
-                )}
-              </button>
-            ))}
-          </div>
+          <DatasetSelector
+            datasets={datasets}
+            value={selectedDatasetId}
+            onChange={setSelectedDatasetId}
+            variant="grid"
+          />
         </Card>
       )}
 

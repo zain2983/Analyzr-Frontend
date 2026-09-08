@@ -1,22 +1,16 @@
 "use client"
 
-import { useState } from "react"
 import { DatasetSummary } from "@/components/dataset-summary"
 import type { Dataset } from "@/app/page"
-import { X } from "lucide-react"
+import { AlertTriangle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface CSVBasicsTabProps {
   datasets: Dataset[]
-  onDatasetsChange: (datasets: Dataset[]) => void
+  onRemoveDataset: (id: string) => void
 }
 
-export function CSVBasicsTab({ datasets, onDatasetsChange }: CSVBasicsTabProps) {
-  const handleRemoveDataset = (index: number) => {
-    const newDatasets = datasets.filter((_, i) => i !== index)
-    onDatasetsChange(newDatasets)
-  }
-
+export function CSVBasicsTab({ datasets, onRemoveDataset }: CSVBasicsTabProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -39,10 +33,16 @@ export function CSVBasicsTab({ datasets, onDatasetsChange }: CSVBasicsTabProps) 
             {datasets.length} dataset{datasets.length > 1 ? "s" : ""} uploaded
           </p>
 
-          {datasets.map((dataset, index) => (
-            <div key={index} className="relative">
+          {datasets.map((dataset) => (
+            <div key={dataset.id} className="relative">
+              {dataset.stale && (
+                <div className="absolute left-2 top-2 z-10 flex items-center gap-1.5 rounded-md bg-yellow-500/10 px-2 py-1 text-xs text-yellow-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  No longer on server — re-upload to use
+                </div>
+              )}
               <Button
-                onClick={() => handleRemoveDataset(index)}
+                onClick={() => onRemoveDataset(dataset.id)}
                 size="sm"
                 variant="ghost"
                 className="absolute right-2 top-2 z-10 h-8 w-8 p-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"

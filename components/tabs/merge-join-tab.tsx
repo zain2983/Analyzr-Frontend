@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Merge, ArrowDownToLine, Search } from "lucide-react"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface MergeJoinTabProps {
   datasets: Dataset[]
@@ -61,17 +62,25 @@ export function MergeJoinTab({ datasets }: MergeJoinTabProps) {
 }
 
 function MergeForm({ datasets }: { datasets: Dataset[] }) {
-  const [leftDataset, setLeftDataset] = useState("")
-  const [rightDataset, setRightDataset] = useState("")
+  const [leftDatasetId, setLeftDatasetId] = useState("")
+  const [rightDatasetId, setRightDatasetId] = useState("")
   const [leftColumn, setLeftColumn] = useState("")
   const [rightColumn, setRightColumn] = useState("")
   const [joinType, setJoinType] = useState("inner")
 
-  const leftColumns = datasets.find((d) => d.name === leftDataset)?.columnNames || []
-  const rightColumns = datasets.find((d) => d.name === rightDataset)?.columnNames || []
+  const leftDataset = datasets.find((d) => d.id === leftDatasetId)
+  const rightDataset = datasets.find((d) => d.id === rightDatasetId)
+  const leftColumns = leftDataset?.columnNames || []
+  const rightColumns = rightDataset?.columnNames || []
 
   const handleMerge = () => {
-    console.log("[v0] Merge:", { leftDataset, rightDataset, leftColumn, rightColumn, joinType })
+    console.log("[v0] Merge:", {
+      leftDataset: leftDataset?.name,
+      rightDataset: rightDataset?.name,
+      leftColumn,
+      rightColumn,
+      joinType,
+    })
     // TODO: Call API function from lib/api/merge-join.ts
   }
 
@@ -80,37 +89,21 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
       <h3 className="mb-4 text-lg font-semibold text-zinc-100">Merge/Join CSVs</h3>
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label className="text-sm text-zinc-400">Left Dataset</Label>
-            <Select value={leftDataset} onValueChange={setLeftDataset}>
-              <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
-                <SelectValue placeholder="Select dataset" />
-              </SelectTrigger>
-              <SelectContent>
-                {datasets.map((dataset) => (
-                  <SelectItem key={dataset.name} value={dataset.name}>
-                    {dataset.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DatasetSelector
+            datasets={datasets}
+            value={leftDatasetId}
+            onChange={setLeftDatasetId}
+            variant="dropdown"
+            label="Left Dataset"
+          />
 
-          <div>
-            <Label className="text-sm text-zinc-400">Right Dataset</Label>
-            <Select value={rightDataset} onValueChange={setRightDataset}>
-              <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
-                <SelectValue placeholder="Select dataset" />
-              </SelectTrigger>
-              <SelectContent>
-                {datasets.map((dataset) => (
-                  <SelectItem key={dataset.name} value={dataset.name}>
-                    {dataset.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DatasetSelector
+            datasets={datasets}
+            value={rightDatasetId}
+            onChange={setRightDatasetId}
+            variant="dropdown"
+            label="Right Dataset"
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -171,16 +164,17 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
 }
 
 function ConcatForm({ datasets }: { datasets: Dataset[] }) {
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>([])
+  const [selectedDatasetIds, setSelectedDatasetIds] = useState<string[]>([])
   const [axis, setAxis] = useState<"vertical" | "horizontal">("vertical")
 
   const handleConcat = () => {
-    console.log("[v0] Concat:", { selectedDatasets, axis })
+    const selectedNames = datasets.filter((d) => selectedDatasetIds.includes(d.id)).map((d) => d.name)
+    console.log("[v0] Concat:", { selectedDatasets: selectedNames, axis })
     // TODO: Call API function from lib/api/merge-join.ts
   }
 
-  const toggleDataset = (name: string) => {
-    setSelectedDatasets((prev) => (prev.includes(name) ? prev.filter((d) => d !== name) : [...prev, name]))
+  const toggleDataset = (id: string) => {
+    setSelectedDatasetIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
   }
 
   return (
@@ -191,15 +185,15 @@ function ConcatForm({ datasets }: { datasets: Dataset[] }) {
           <Label className="mb-2 text-sm text-zinc-400">Select datasets to combine</Label>
           <div className="space-y-2 rounded-md border border-zinc-800 bg-zinc-950 p-3">
             {datasets.map((dataset) => (
-              <div key={dataset.name} className="flex items-center gap-2">
+              <div key={dataset.id} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id={`concat-${dataset.name}`}
-                  checked={selectedDatasets.includes(dataset.name)}
-                  onChange={() => toggleDataset(dataset.name)}
+                  id={`concat-${dataset.id}`}
+                  checked={selectedDatasetIds.includes(dataset.id)}
+                  onChange={() => toggleDataset(dataset.id)}
                   className="h-4 w-4 rounded border-zinc-700 bg-zinc-800"
                 />
-                <label htmlFor={`concat-${dataset.name}`} className="text-sm text-zinc-300">
+                <label htmlFor={`concat-${dataset.id}`} className="text-sm text-zinc-300">
                   {dataset.name} ({dataset.rows} rows × {dataset.columns} cols)
                 </label>
               </div>
@@ -220,7 +214,7 @@ function ConcatForm({ datasets }: { datasets: Dataset[] }) {
           </Select>
         </div>
 
-        <Button onClick={handleConcat} className="w-full" disabled={selectedDatasets.length < 2}>
+        <Button onClick={handleConcat} className="w-full" disabled={selectedDatasetIds.length < 2}>
           Concatenate Datasets
         </Button>
       </div>
@@ -229,16 +223,23 @@ function ConcatForm({ datasets }: { datasets: Dataset[] }) {
 }
 
 function LookupForm({ datasets }: { datasets: Dataset[] }) {
-  const [sourceDataset, setSourceDataset] = useState("")
-  const [lookupDataset, setLookupDataset] = useState("")
+  const [sourceDatasetId, setSourceDatasetId] = useState("")
+  const [lookupDatasetId, setLookupDatasetId] = useState("")
   const [keyColumn, setKeyColumn] = useState("")
   const [valueColumns, setValueColumns] = useState<string[]>([])
 
-  const sourceColumns = datasets.find((d) => d.name === sourceDataset)?.columnNames || []
-  const lookupColumns = datasets.find((d) => d.name === lookupDataset)?.columnNames || []
+  const sourceDataset = datasets.find((d) => d.id === sourceDatasetId)
+  const lookupDataset = datasets.find((d) => d.id === lookupDatasetId)
+  const sourceColumns = sourceDataset?.columnNames || []
+  const lookupColumns = lookupDataset?.columnNames || []
 
   const handleLookup = () => {
-    console.log("[v0] Lookup:", { sourceDataset, lookupDataset, keyColumn, valueColumns })
+    console.log("[v0] Lookup:", {
+      sourceDataset: sourceDataset?.name,
+      lookupDataset: lookupDataset?.name,
+      keyColumn,
+      valueColumns,
+    })
     // TODO: Call API function from lib/api/merge-join.ts
   }
 
@@ -250,37 +251,21 @@ function LookupForm({ datasets }: { datasets: Dataset[] }) {
     <Card className="border-zinc-800 bg-zinc-900 p-6">
       <h3 className="mb-4 text-lg font-semibold text-zinc-100">Lookup/VLOOKUP</h3>
       <div className="space-y-4">
-        <div>
-          <Label className="text-sm text-zinc-400">Source Dataset (to enrich)</Label>
-          <Select value={sourceDataset} onValueChange={setSourceDataset}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
-              <SelectValue placeholder="Select dataset" />
-            </SelectTrigger>
-            <SelectContent>
-              {datasets.map((dataset) => (
-                <SelectItem key={dataset.name} value={dataset.name}>
-                  {dataset.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <DatasetSelector
+          datasets={datasets}
+          value={sourceDatasetId}
+          onChange={setSourceDatasetId}
+          variant="dropdown"
+          label="Source Dataset (to enrich)"
+        />
 
-        <div>
-          <Label className="text-sm text-zinc-400">Lookup Dataset (contains values)</Label>
-          <Select value={lookupDataset} onValueChange={setLookupDataset}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
-              <SelectValue placeholder="Select dataset" />
-            </SelectTrigger>
-            <SelectContent>
-              {datasets.map((dataset) => (
-                <SelectItem key={dataset.name} value={dataset.name}>
-                  {dataset.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <DatasetSelector
+          datasets={datasets}
+          value={lookupDatasetId}
+          onChange={setLookupDatasetId}
+          variant="dropdown"
+          label="Lookup Dataset (contains values)"
+        />
 
         <div>
           <Label className="text-sm text-zinc-400">Key Column (common to both)</Label>

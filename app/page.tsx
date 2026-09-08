@@ -16,6 +16,8 @@ import { ConversionTab } from "@/components/tabs/conversion-tab"
 import { SQLTab } from "@/components/tabs/sql-tab"
 import { CheckCommasTab } from "@/components/tabs/check-commas-tab"
 import { BACKEND_URL } from "@/lib/config"
+import { listDatasetIds } from "@/lib/api/list-datasets"
+import { deleteDataset } from "@/lib/api/delete-dataset"
 
 export type TabId =
   | "csv-basics"
@@ -38,6 +40,8 @@ export interface Dataset {
   columns: number
   columnNames: string[]
   data?: Record<string, any>[]
+  /** True when this id no longer exists on the backend (e.g. after a restart). Actions should be disabled. */
+  stale?: boolean
 }
 
 export default function Page() {
@@ -87,11 +91,49 @@ export default function Page() {
     sessionStorage.setItem("datasets", JSON.stringify(datasets))
   }, [datasets, mounted])
 
+  // Reconcile cached dataset ids against what the backend actually has once
+  // it's confirmed awake. A backend restart (redeploy, free-tier spin-down)
+  // empties the in-memory DATASETS dict while the browser tab keeps
+  // rendering the chips it cached in sessionStorage — mark those stale
+  // rather than silently dropping them, so the user still knows which
+  // files they had.
+  useEffect(() => {
+    if (backendStatus !== "ready") return
+
+    let cancelled = false
+
+    const reconcile = async () => {
+      try {
+        const liveIds = await listDatasetIds()
+        if (cancelled) return
+        const liveIdSet = new Set(liveIds)
+        setDatasets((prev) =>
+          prev.map((d) => (d.stale !== !liveIdSet.has(d.id) ? { ...d, stale: !liveIdSet.has(d.id) } : d)),
+        )
+      } catch {
+        // Reconciliation is best-effort; leave existing dataset state untouched.
+      }
+    }
+
+    reconcile()
+    return () => {
+      cancelled = true
+    }
+  }, [backendStatus])
+
   if (!mounted) return null
 
-  const handleRemoveDataset = (index: number) => {
-    const newDatasets = datasets.filter((_, i) => i !== index)
-    setDatasets(newDatasets)
+  const handleRemoveDataset = (id: string) => {
+    setDatasets((prev) => prev.filter((d) => d.id !== id))
+    deleteDataset(id).catch((err) => console.error("Failed to evict dataset on backend:", err))
+  }
+
+  const handleClearAllDatasets = () => {
+    const ids = datasets.map((d) => d.id)
+    setDatasets([])
+    ids.forEach((id) => {
+      deleteDataset(id).catch((err) => console.error("Failed to evict dataset on backend:", err))
+    })
   }
 
   return (
@@ -137,6 +179,7 @@ export default function Page() {
           datasets={datasets}
           onUploadClick={() => setShowUploadModal(true)}
           onRemoveDataset={handleRemoveDataset}
+          onClearAll={handleClearAllDatasets}
           maxFiles={5}
         />
       </div>
@@ -144,7 +187,7 @@ export default function Page() {
       {/* Main Content */}
       <main className="pt-36 sm:pt-32">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-          {activeTab === "csv-basics" && <CSVBasicsTab datasets={datasets} onDatasetsChange={setDatasets} />}
+          {activeTab === "csv-basics" && <CSVBasicsTab datasets={datasets} onRemoveDataset={handleRemoveDataset} />}
 
           {activeTab === "eda" && <EDATab datasets={datasets} />}
 

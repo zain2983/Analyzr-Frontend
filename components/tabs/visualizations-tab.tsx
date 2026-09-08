@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import type { Dataset } from "@/app/page"
 import { Database } from "lucide-react"
 import { ChartContainer } from "@/components/chart-container"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface VisualizationsTabProps {
   datasets: Dataset[]
@@ -13,11 +14,17 @@ interface VisualizationsTabProps {
 type ChartType = "bar" | "histogram" | "pie"
 
 export function VisualizationsTab({ datasets }: VisualizationsTabProps) {
-  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState<number>(0)
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(datasets[0]?.id ?? "")
   const [selectedColumn, setSelectedColumn] = useState<string>("")
   const [chartType, setChartType] = useState<ChartType>("bar")
 
-  const dataset = datasets.length > 0 ? datasets[selectedDatasetIndex] : null
+  const dataset = datasets.find((d) => d.id === selectedDatasetId) ?? datasets[0] ?? null
+
+  useEffect(() => {
+    if (!datasets.find((d) => d.id === selectedDatasetId)) {
+      setSelectedDatasetId(datasets[0]?.id ?? "")
+    }
+  }, [datasets])
 
   useEffect(() => {
     if (dataset && dataset.columnNames.length > 0 && !selectedColumn) {
@@ -29,7 +36,7 @@ export function VisualizationsTab({ datasets }: VisualizationsTabProps) {
     if (dataset && dataset.columnNames.length > 0) {
       setSelectedColumn(dataset.columnNames[0])
     }
-  }, [selectedDatasetIndex, dataset])
+  }, [selectedDatasetId, dataset])
 
   if (!dataset) {
     return (
@@ -63,20 +70,12 @@ export function VisualizationsTab({ datasets }: VisualizationsTabProps) {
       <Card className="border-zinc-800 bg-zinc-900 p-6">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {datasets.length > 1 && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">Select Dataset</label>
-              <select
-                value={selectedDatasetIndex}
-                onChange={(e) => setSelectedDatasetIndex(Number(e.target.value))}
-                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700"
-              >
-                {datasets.map((ds, idx) => (
-                  <option key={idx} value={idx}>
-                    {ds.name} ({ds.rows} rows, {ds.columns} columns)
-                  </option>
-                ))}
-              </select>
-            </div>
+            <DatasetSelector
+              datasets={datasets}
+              value={selectedDatasetId}
+              onChange={setSelectedDatasetId}
+              variant="dropdown"
+            />
           )}
 
           <div>

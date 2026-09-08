@@ -8,7 +8,7 @@ import { sql } from "@codemirror/lang-sql"
 import { oneDark } from "@codemirror/theme-one-dark"
 import type { Dataset } from "@/app/page"
 import { runQuery } from "@/lib/api/sql"
-import { Database } from "lucide-react"
+import { DatasetSelector } from "@/components/dataset-selector"
 
 interface SQLTabProps {
   datasets: Dataset[]
@@ -103,27 +103,14 @@ export function SQLTab({ datasets }: SQLTabProps) {
   return (
     <div className="space-y-6">
       <Card className="border-zinc-800 bg-zinc-900 p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 mb-4">
-          {datasets.map((ds) => (
-            <button
-              key={ds.id}
-              onClick={() => setSelectedDatasetId(ds.id)}
-              className={`relative flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${selectedDatasetId === ds.id
-                  ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20"
-                  : "border-zinc-700 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-900"
-                }`}
-            >
-              <Database className="h-4 w-4 flex-shrink-0 text-zinc-400" />
-              <div className="flex-1 text-left min-w-0">
-                <p className="text-sm font-medium text-zinc-100 truncate">{ds.name}</p>
-                <p className="text-xs text-zinc-500">{ds.rows.toLocaleString()} rows · {ds.columns} cols</p>
-              </div>
-              {selectedDatasetId === ds.id && (
-                <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500" />
-              )}
-            </button>
-          ))}
-        </div>
+        <DatasetSelector
+          datasets={datasets}
+          value={selectedDatasetId}
+          onChange={setSelectedDatasetId}
+          variant="grid"
+          label=""
+          className="mb-4"
+        />
 
         <div className="rounded-md border border-zinc-800 overflow-hidden text-sm">
           <CodeMirror
