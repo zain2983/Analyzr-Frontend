@@ -41,6 +41,8 @@ export interface Dataset {
   rows: number
   columns: number
   columnNames: string[]
+  /** Column name -> pandas dtype string (e.g. "int64", "object", "datetime64[ns]"), when the backend provided it. */
+  columnTypes?: Record<string, string>
   data?: Record<string, any>[]
   /** True when this id no longer exists on the backend (e.g. after a restart). Actions should be disabled. */
   stale?: boolean

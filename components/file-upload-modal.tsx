@@ -48,6 +48,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
           rows: resp.rows ?? 0,
           columns: Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0),
           columnNames: Array.isArray(resp.columns) ? resp.columns : [],
+          columnTypes: resp.column_types && typeof resp.column_types === "object" ? resp.column_types : undefined,
         }
       })
 

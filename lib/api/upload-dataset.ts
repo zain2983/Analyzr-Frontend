@@ -1,5 +1,5 @@
 import { BACKEND_URL } from "@/lib/config"
-
+import { parseApiError } from "./errors"
 
 export async function uploadDataset(file: File, datasetId?: string) {
     const url = `${BACKEND_URL}/api/upload`
@@ -14,11 +14,8 @@ export async function uploadDataset(file: File, datasetId?: string) {
     })
 
     if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`Upload failed: ${res.status} ${text}`)
+        throw await parseApiError(res, "Upload failed")
     }
 
-    const json = await res.json()
-    // console.log(json)
-    return json
+    return res.json()
 }

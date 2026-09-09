@@ -1,6 +1,7 @@
 import { BACKEND_URL } from "@/lib/config"
 import { useBackendStatus, type BackendStatus } from "@/lib/hooks/useBackendStatus"
 import { uploadDataset } from "./upload-dataset"
+import { parseApiError } from "./errors"
 
 export async function runQuery(query: string, datasetId?: string) {
     const url = `${BACKEND_URL}/api/query`
@@ -15,13 +16,10 @@ export async function runQuery(query: string, datasetId?: string) {
     })
 
     if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`Query failed: ${res.status} ${text}`)
+        throw await parseApiError(res, "Query failed")
     }
 
-    const json = await res.json()
-    console.log(json)
-    return json
+    return res.json()
 }
 
 // Add a wrapper function for uploads with cold start handling

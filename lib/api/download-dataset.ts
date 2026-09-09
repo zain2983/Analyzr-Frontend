@@ -1,4 +1,5 @@
 import { BACKEND_URL } from "@/lib/config"
+import { parseApiError } from "./errors"
 
 export async function downloadDataset(datasetId: string, filename: string) {
     const url = `${BACKEND_URL}/api/dataset/${datasetId}/download`
@@ -6,8 +7,7 @@ export async function downloadDataset(datasetId: string, filename: string) {
     const res = await fetch(url)
 
     if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`Download failed: ${res.status} ${text}`)
+        throw await parseApiError(res, "Download failed")
     }
 
     const blob = await res.blob()

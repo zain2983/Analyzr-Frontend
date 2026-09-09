@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import CodeMirror from "@uiw/react-codemirror"
-import { sql } from "@codemirror/lang-sql"
+import { sql, type SQLNamespace } from "@codemirror/lang-sql"
 import { oneDark } from "@codemirror/theme-one-dark"
+import type { EditorView } from "@codemirror/view"
 import type { Dataset } from "@/app/page"
 import { runQuery } from "@/lib/api/sql"
 import { DatasetSelector } from "@/components/dataset-selector"
@@ -14,28 +15,50 @@ interface SQLTabProps {
   datasets: Dataset[]
 }
 
-const sanitizeQuery = (raw: string): string => {
-  const withoutComments = raw
-    .split("\n")
-    .map(line => {
-      const commentIdx = line.indexOf("--")
-      return commentIdx !== -1 ? line.slice(0, commentIdx) : line
-    })
-    .join("\n")
+const DEFAULT_QUERY = "SELECT *\nFROM dataset\nLIMIT 10"
 
-  const lines = withoutComments
-    .split("\n")
-    .map(l => l.trim())
-    .filter(Boolean)
+interface StarterQuery {
+  label: string
+  query: string
+}
 
-  const fullQuery = lines.join(" ").trim()
+function buildStarterQueries(ds: Dataset | undefined): StarterQuery[] {
+  if (!ds || ds.columnNames.length === 0) return []
+  const cols = ds.columnNames
+  const firstCol = cols[0]
 
-  const limitInMiddle = fullQuery.match(/^(.*?)\s+LIMIT\s+(\d+)\s+(WHERE\s+.*)$/i)
-  if (limitInMiddle) {
-    return `${limitInMiddle[1].trim()} ${limitInMiddle[3].trim()} LIMIT ${limitInMiddle[2]}`
-  }
+  const nullAuditCols = cols
+    .map((c) => `  SUM(CASE WHEN "${c}" IS NULL THEN 1 ELSE 0 END) AS "${c}_nulls"`)
+    .join(",\n")
 
-  return fullQuery
+  return [
+    { label: "Preview rows", query: `SELECT *\nFROM dataset\nLIMIT 10` },
+    {
+      label: "Group & count",
+      query: `SELECT "${firstCol}", COUNT(*)\nFROM dataset\nGROUP BY "${firstCol}"\nORDER BY 2 DESC`,
+    },
+    { label: "Null audit", query: `SELECT\n${nullAuditCols}\nFROM dataset` },
+  ]
+}
+
+function completionTypeForDtype(dtype: string | undefined): string {
+  if (!dtype) return "property"
+  if (/^(int|float|uint)/i.test(dtype)) return "property"
+  if (/^bool/i.test(dtype)) return "property"
+  if (/^datetime/i.test(dtype)) return "property"
+  return "property"
+}
+
+function buildSchema(ds: Dataset | undefined): SQLNamespace | undefined {
+  if (!ds) return undefined
+  const columns = ds.columnNames.map((name) => ({
+    label: name,
+    type: completionTypeForDtype(ds.columnTypes?.[name]),
+    detail: ds.columnTypes?.[name],
+  }))
+  // The backend registers the dataframe under both "dataset" and "data" —
+  // completions need to cover whichever table name the user types.
+  return { dataset: columns, data: columns }
 }
 
 export function SQLTab({ datasets }: SQLTabProps) {
@@ -43,9 +66,11 @@ export function SQLTab({ datasets }: SQLTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resultRows, setResultRows] = useState<Record<string, any>[]>([])
+  const [totalRows, setTotalRows] = useState(0)
 
   // Store query in a ref — never in state — so onChange never triggers re-renders
-  const queryRef = useRef("SELECT *\nFROM dataset\nLIMIT 10")
+  const queryRef = useRef(DEFAULT_QUERY)
+  const editorViewRef = useRef<EditorView | null>(null)
 
   useEffect(() => {
     if (!datasets.find((d) => d.id === selectedDatasetId)) {
@@ -55,28 +80,43 @@ export function SQLTab({ datasets }: SQLTabProps) {
 
   const selectedDs = datasets.find((d) => d.id === selectedDatasetId)
 
-  const sqlExtension = useMemo(() => sql({
-    schema: selectedDs ? { dataset: selectedDs.columnNames ?? [] } : undefined,
-    defaultTable: "dataset",
-  }), [selectedDatasetId, selectedDs?.columnNames])
+  const sqlExtension = useMemo(
+    () =>
+      sql({
+        schema: buildSchema(selectedDs),
+        defaultTable: "dataset",
+      }),
+    [selectedDatasetId, selectedDs?.columnNames, selectedDs?.columnTypes]
+  )
+
+  const starterQueries = useMemo(() => buildStarterQueries(selectedDs), [selectedDs])
+
+  const insertStarterQuery = useCallback((q: string) => {
+    queryRef.current = q
+    const view = editorViewRef.current
+    if (view) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: q },
+      })
+    }
+  }, [])
 
   const execute = useCallback(async () => {
     if (!selectedDatasetId) return
-    const sanitized = sanitizeQuery(queryRef.current)
-    if (!sanitized) return
+    const trimmed = queryRef.current.trim()
+    if (!trimmed) return
 
     setLoading(true)
     setError(null)
     try {
-      console.log("runQuery payload:", { dataset_id: selectedDatasetId, query: sanitized })
-      const res = await runQuery(sanitized, selectedDatasetId)
-      if (res?.data && Array.isArray(res.data)) setResultRows(res.data)
-      else if (Array.isArray(res)) setResultRows(res)
-      else if (res?.rows && Array.isArray(res.rows)) setResultRows(res.rows)
-      else setResultRows([])
+      const res = await runQuery(trimmed, selectedDatasetId)
+      const data = Array.isArray(res?.data) ? res.data : []
+      setResultRows(data)
+      setTotalRows(typeof res?.rows === "number" ? res.rows : data.length)
     } catch (err: any) {
-      console.error(err)
       setError(err?.message || "Query failed")
+      setResultRows([])
+      setTotalRows(0)
     } finally {
       setLoading(false)
     }
@@ -100,79 +140,103 @@ export function SQLTab({ datasets }: SQLTabProps) {
     )
   }
 
+  const queryCard = (
+    <Card className="border-zinc-800 bg-zinc-900 p-6">
+      <DatasetSelector
+        datasets={datasets}
+        value={selectedDatasetId}
+        onChange={setSelectedDatasetId}
+        variant="grid"
+        label=""
+        className="mb-4"
+      />
+
+      {starterQueries.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {starterQueries.map((sq) => (
+            <Button
+              key={sq.label}
+              variant="outline"
+              size="sm"
+              onClick={() => insertStarterQuery(sq.query)}
+              className="border-zinc-700 bg-zinc-950 text-xs text-zinc-300 hover:bg-zinc-800"
+            >
+              {sq.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      <div className="rounded-md border border-zinc-800 overflow-hidden text-sm">
+        <CodeMirror
+          value={queryRef.current}
+          height="150px"
+          theme={oneDark}
+          extensions={[sqlExtension]}
+          onCreateEditor={(view) => {
+            editorViewRef.current = view
+          }}
+          onChange={(val) => {
+            queryRef.current = val
+          }}
+          indentWithTab={false}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLine: true,
+            autocompletion: true,
+          }}
+        />
+      </div>
+
+      <div className="mt-3 flex items-center gap-3">
+        <Button onClick={execute} disabled={loading} className="bg-zinc-800 hover:bg-zinc-700">
+          {loading ? "Running..." : "Run Query"}
+        </Button>
+        {error && <p className="text-sm text-red-400">{error}</p>}
+      </div>
+    </Card>
+  )
+
+  const resultsCard = (
+    <Card className="border-zinc-800 bg-zinc-900">
+      <div className="p-4">
+        <h3 className="mb-4 text-lg font-semibold text-zinc-100">
+          {totalRows > resultRows.length
+            ? `Showing first ${resultRows.length} of ${totalRows} rows`
+            : `Results (${totalRows} row${totalRows === 1 ? "" : "s"})`}
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-zinc-700">
+                {headers.map((header) => (
+                  <th key={header} className="px-4 py-3 text-left text-sm font-semibold text-zinc-300 bg-zinc-950">
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {resultRows.map((row, rowIdx) => (
+                <tr key={rowIdx} className="border-b border-zinc-800 hover:bg-zinc-950/50 transition-colors">
+                  {headers.map((header) => (
+                    <td key={`${rowIdx}-${header}`} className="px-4 py-3 text-sm text-zinc-300">
+                      {row[header] === null ? <span className="text-zinc-500 italic">null</span> : String(row[header])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Card>
+  )
+
   return (
     <div className="space-y-6">
-      <Card className="border-zinc-800 bg-zinc-900 p-6">
-        <DatasetSelector
-          datasets={datasets}
-          value={selectedDatasetId}
-          onChange={setSelectedDatasetId}
-          variant="grid"
-          label=""
-          className="mb-4"
-        />
-
-        <div className="rounded-md border border-zinc-800 overflow-hidden text-sm">
-          <CodeMirror
-            defaultValue={queryRef.current}
-            height="150px"
-            theme={oneDark}
-            extensions={[sqlExtension]}
-            onChange={(val) => { queryRef.current = val }}
-            indentWithTab={false}
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLine: true,
-              autocompletion: true,
-            }}
-          />
-        </div>
-
-        <div className="mt-3 flex items-center gap-3">
-          <Button onClick={execute} disabled={loading} className="bg-zinc-800 hover:bg-zinc-700">
-            {loading ? "Running..." : "Run Query"}
-          </Button>
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </div>
-      </Card>
-
-      {resultRows.length > 0 && (
-        <Card className="border-zinc-800 bg-zinc-900">
-          <div className="p-4">
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">
-              Results ({resultRows.length} rows)
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-zinc-700">
-                    {headers.map((header) => (
-                      <th key={header} className="px-4 py-3 text-left text-sm font-semibold text-zinc-300 bg-zinc-950">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {resultRows.map((row, rowIdx) => (
-                    <tr key={rowIdx} className="border-b border-zinc-800 hover:bg-zinc-950/50 transition-colors">
-                      {headers.map((header) => (
-                        <td key={`${rowIdx}-${header}`} className="px-4 py-3 text-sm text-zinc-300">
-                          {row[header] === null ? (
-                            <span className="text-zinc-500 italic">null</span>
-                          ) : (
-                            String(row[header])
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Card>
-      )}
+      {queryCard}
+      {resultRows.length > 0 && resultsCard}
     </div>
   )
 }
