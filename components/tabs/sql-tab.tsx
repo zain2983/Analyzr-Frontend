@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useRef, useMemo, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import CodeMirror from "@uiw/react-codemirror"
@@ -13,6 +13,8 @@ import { DatasetSelector } from "@/components/dataset-selector"
 
 interface SQLTabProps {
   datasets: Dataset[]
+  selectedDatasetId: string
+  onSelectedDatasetChange: (id: string) => void
 }
 
 const DEFAULT_QUERY = "SELECT *\nFROM dataset\nLIMIT 10"
@@ -61,8 +63,7 @@ function buildSchema(ds: Dataset | undefined): SQLNamespace | undefined {
   return { dataset: columns, data: columns }
 }
 
-export function SQLTab({ datasets }: SQLTabProps) {
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(datasets[0]?.id ?? "")
+export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }: SQLTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resultRows, setResultRows] = useState<Record<string, any>[]>([])
@@ -71,12 +72,6 @@ export function SQLTab({ datasets }: SQLTabProps) {
   // Store query in a ref — never in state — so onChange never triggers re-renders
   const queryRef = useRef(DEFAULT_QUERY)
   const editorViewRef = useRef<EditorView | null>(null)
-
-  useEffect(() => {
-    if (!datasets.find((d) => d.id === selectedDatasetId)) {
-      setSelectedDatasetId(datasets[0]?.id ?? "")
-    }
-  }, [datasets])
 
   const selectedDs = datasets.find((d) => d.id === selectedDatasetId)
 
@@ -145,7 +140,7 @@ export function SQLTab({ datasets }: SQLTabProps) {
       <DatasetSelector
         datasets={datasets}
         value={selectedDatasetId}
-        onChange={setSelectedDatasetId}
+        onChange={onSelectedDatasetChange}
         className="mb-4"
       />
 

@@ -10,10 +10,11 @@ import { DatasetSelector } from "@/components/dataset-selector"
 
 interface CheckCommasTabProps {
     datasets: Dataset[]
+    selectedDatasetId: string
+    onSelectedDatasetChange: (id: string) => void
 }
 
-export function CheckCommasTab({ datasets }: CheckCommasTabProps) {
-    const [selectedDatasetId, setSelectedDatasetId] = useState<string>(datasets[0]?.id ?? "")
+export function CheckCommasTab({ datasets, selectedDatasetId, onSelectedDatasetChange }: CheckCommasTabProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [response, setResponse] = useState<any>(null)
@@ -58,7 +59,7 @@ export function CheckCommasTab({ datasets }: CheckCommasTabProps) {
                     <DatasetSelector
                         datasets={datasets}
                         value={selectedDatasetId}
-                        onChange={setSelectedDatasetId}
+                        onChange={onSelectedDatasetChange}
                     />
 
                     <Button

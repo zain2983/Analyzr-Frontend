@@ -4,22 +4,15 @@ import { Card } from "@/components/ui/card"
 import type { Dataset } from "@/app/page"
 import { DataTable } from "@/components/data-table"
 import { AlertCircle, Database, Hash, FileText } from "lucide-react"
-import { useEffect, useState } from "react"
 import { DatasetSelector } from "@/components/dataset-selector"
 
 interface EDATabProps {
   datasets: Dataset[]
+  selectedDatasetId: string
+  onSelectedDatasetChange: (id: string) => void
 }
 
-export function EDATab({ datasets }: EDATabProps) {
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(datasets[0]?.id ?? "")
-
-  useEffect(() => {
-    if (!datasets.find((d) => d.id === selectedDatasetId)) {
-      setSelectedDatasetId(datasets[0]?.id ?? "")
-    }
-  }, [datasets])
-
+export function EDATab({ datasets, selectedDatasetId, onSelectedDatasetChange }: EDATabProps) {
   if (datasets.length === 0) {
     return (
       <div className="space-y-6">
@@ -78,7 +71,7 @@ export function EDATab({ datasets }: EDATabProps) {
           <DatasetSelector
             datasets={datasets}
             value={selectedDatasetId}
-            onChange={setSelectedDatasetId}
+            onChange={onSelectedDatasetChange}
           />
         </Card>
       )}

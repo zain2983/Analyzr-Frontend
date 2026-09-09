@@ -32,6 +32,9 @@ export type TabId =
   | "sql"
   | "check-commas"
 
+/** Tabs where a single active dataset is chosen (as opposed to Compare/CSV Basics, which show all of them). */
+const SINGLE_DATASET_TABS: ReadonlySet<TabId> = new Set(["eda", "sql", "check-commas"])
+
 
 export interface Dataset {
   id: string
@@ -55,6 +58,7 @@ export default function Page() {
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>("")
 
   useEffect(() => {
     if (backendStatus !== "waking") return
@@ -94,6 +98,13 @@ export default function Page() {
     if (!mounted) return
     sessionStorage.setItem("datasets", JSON.stringify(datasets))
   }, [datasets, mounted])
+
+  // Keep the shared "active dataset" selection valid as datasets are added or removed.
+  useEffect(() => {
+    if (!datasets.find((d) => d.id === selectedDatasetId)) {
+      setSelectedDatasetId(datasets[0]?.id ?? "")
+    }
+  }, [datasets])
 
   // Reconcile cached dataset ids against what the backend actually has once
   // it's confirmed awake. A backend restart (redeploy, free-tier spin-down)
@@ -190,6 +201,7 @@ export default function Page() {
           onRenameDataset={handleRenameDataset}
           onClearAll={handleClearAllDatasets}
           maxFiles={5}
+          highlightedDatasetId={SINGLE_DATASET_TABS.has(activeTab) ? selectedDatasetId : undefined}
         />
       </div>
 
@@ -198,7 +210,9 @@ export default function Page() {
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
           {activeTab === "csv-basics" && <CSVBasicsTab datasets={datasets} onRemoveDataset={handleRemoveDataset} />}
 
-          {activeTab === "eda" && <EDATab datasets={datasets} />}
+          {activeTab === "eda" && (
+            <EDATab datasets={datasets} selectedDatasetId={selectedDatasetId} onSelectedDatasetChange={setSelectedDatasetId} />
+          )}
 
           {activeTab === "visualizations" && <VisualizationsTab datasets={datasets} />}
 
@@ -214,9 +228,17 @@ export default function Page() {
 
           {activeTab === "conversion" && <ConversionTab datasets={datasets} />}
 
-          {activeTab === "sql" && <SQLTab datasets={datasets} />}
+          {activeTab === "sql" && (
+            <SQLTab datasets={datasets} selectedDatasetId={selectedDatasetId} onSelectedDatasetChange={setSelectedDatasetId} />
+          )}
 
-          {activeTab === "check-commas" && <CheckCommasTab datasets={datasets} />}
+          {activeTab === "check-commas" && (
+            <CheckCommasTab
+              datasets={datasets}
+              selectedDatasetId={selectedDatasetId}
+              onSelectedDatasetChange={setSelectedDatasetId}
+            />
+          )}
 
 
         </div>

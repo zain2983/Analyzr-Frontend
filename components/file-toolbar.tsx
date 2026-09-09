@@ -26,6 +26,8 @@ interface FileToolbarProps {
   onRenameDataset: (id: string, name: string) => void
   onClearAll: () => void
   maxFiles?: number
+  /** The dataset id to highlight as "active" — only set on tabs that operate on one chosen dataset. */
+  highlightedDatasetId?: string
 }
 
 export function FileToolbar({
@@ -35,6 +37,7 @@ export function FileToolbar({
   onRenameDataset,
   onClearAll,
   maxFiles = 5,
+  highlightedDatasetId,
 }: FileToolbarProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -80,16 +83,26 @@ export function FileToolbar({
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-400">Files:</span>
                 <div className="flex gap-2">
-                  {datasets.map((dataset) => (
+                  {datasets.map((dataset) => {
+                    const isHighlighted = !dataset.stale && dataset.id === highlightedDatasetId
+                    return (
                     <div
                       key={dataset.id}
                       className={cn(
-                        "flex items-center justify-between rounded-md border px-3 py-1.5 w-[220px]",
+                        "relative flex items-center justify-between rounded-md border px-3 py-1.5 w-[220px] transition-colors",
                         dataset.stale
                           ? "border-yellow-600/50 bg-yellow-500/5"
-                          : "border-zinc-700 bg-zinc-800/50",
+                          : isHighlighted
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-zinc-700 bg-zinc-800/50",
                       )}
                     >
+                      {isHighlighted && (
+                        <span
+                          className="absolute -left-px -top-px -bottom-px w-0.5 rounded-l-md bg-blue-500"
+                          aria-hidden="true"
+                        />
+                      )}
                       {/* File icon + name */}
                       <div className="flex items-center gap-2 overflow-hidden">
                         {dataset.stale ? (
@@ -98,7 +111,9 @@ export function FileToolbar({
                             aria-label="No longer on server"
                           />
                         ) : (
-                          <FileText className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
+                          <FileText
+                            className={cn("h-3.5 w-3.5 flex-shrink-0", isHighlighted ? "text-blue-400" : "text-zinc-400")}
+                          />
                         )}
                         {editingId === dataset.id ? (
                           <Input
@@ -163,7 +178,7 @@ export function FileToolbar({
                         </div>
                       )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )}
