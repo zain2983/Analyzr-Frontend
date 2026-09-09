@@ -203,7 +203,6 @@ export function DataOpsTab({ datasets }: DataOpsTabProps) {
               setSelectedColumn("")
               setResult(null)
             }}
-            variant="dropdown"
           />
         </Card>
 

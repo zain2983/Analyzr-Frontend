@@ -141,7 +141,6 @@ export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
             setUploadedType("")
             setSelectedDatasetId(id)
           }}
-          variant="dropdown"
           label="Choose existing dataset"
           allowNone
           noneValue={NONE}

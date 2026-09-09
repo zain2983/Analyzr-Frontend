@@ -146,8 +146,6 @@ export function SQLTab({ datasets }: SQLTabProps) {
         datasets={datasets}
         value={selectedDatasetId}
         onChange={setSelectedDatasetId}
-        variant="grid"
-        label=""
         className="mb-4"
       />
 

@@ -79,7 +79,6 @@ export function EDATab({ datasets }: EDATabProps) {
             datasets={datasets}
             value={selectedDatasetId}
             onChange={setSelectedDatasetId}
-            variant="grid"
           />
         </Card>
       )}

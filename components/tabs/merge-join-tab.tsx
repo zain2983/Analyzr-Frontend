@@ -93,7 +93,6 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
             datasets={datasets}
             value={leftDatasetId}
             onChange={setLeftDatasetId}
-            variant="dropdown"
             label="Left Dataset"
           />
 
@@ -101,7 +100,6 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
             datasets={datasets}
             value={rightDatasetId}
             onChange={setRightDatasetId}
-            variant="dropdown"
             label="Right Dataset"
           />
         </div>
@@ -255,7 +253,6 @@ function LookupForm({ datasets }: { datasets: Dataset[] }) {
           datasets={datasets}
           value={sourceDatasetId}
           onChange={setSourceDatasetId}
-          variant="dropdown"
           label="Source Dataset (to enrich)"
         />
 
@@ -263,7 +260,6 @@ function LookupForm({ datasets }: { datasets: Dataset[] }) {
           datasets={datasets}
           value={lookupDatasetId}
           onChange={setLookupDatasetId}
-          variant="dropdown"
           label="Lookup Dataset (contains values)"
         />
 

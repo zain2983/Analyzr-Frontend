@@ -74,7 +74,6 @@ export function VisualizationsTab({ datasets }: VisualizationsTabProps) {
               datasets={datasets}
               value={selectedDatasetId}
               onChange={setSelectedDatasetId}
-              variant="dropdown"
             />
           )}
 

@@ -43,7 +43,6 @@ export function DataCleaningTab({ datasets }: DataCleaningTabProps) {
             datasets={datasets}
             value={selectedDatasetId}
             onChange={setSelectedDatasetId}
-            variant="dropdown"
           />
         </Card>
       )}

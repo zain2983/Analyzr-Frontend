@@ -59,7 +59,6 @@ export function CheckCommasTab({ datasets }: CheckCommasTabProps) {
                         datasets={datasets}
                         value={selectedDatasetId}
                         onChange={setSelectedDatasetId}
-                        variant="grid"
                     />
 
                     <Button

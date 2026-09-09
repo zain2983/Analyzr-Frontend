@@ -44,7 +44,6 @@ export function TransformationTab({ datasets }: TransformationTabProps) {
             datasets={datasets}
             value={selectedDatasetId}
             onChange={setSelectedDatasetId}
-            variant="dropdown"
           />
         </Card>
       )}
