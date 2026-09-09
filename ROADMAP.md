@@ -25,7 +25,7 @@ Line references point at the state of the code as of this writing; treat them as
 
 Ordered first because everything else in this file touches dataset selection, and the current inconsistency makes each of those touches a small migration of its own.
 
-- [ ] **Unify the dataset selector pattern**
+- [x] **Unify the dataset selector pattern**
   - There are four different selector UIs for the same concept, across eight tabs:
     - Card-grid buttons keyed by `dataset.id` — `sql-tab.tsx`, `check-commas-tab.tsx`
     - Card-grid buttons keyed by array index — `eda-tab.tsx`
@@ -38,20 +38,20 @@ Ordered first because everything else in this file touches dataset selection, an
   - **Implementation:** one `components/dataset-selector.tsx` taking `value: string` (the id), `onChange: (id: string) => void`, `datasets: Dataset[]`, and a `variant: "grid" | "dropdown"` — the two shapes need to coexist, because the card grid suits tabs where picking a dataset *is* the page, and the dropdown suits the form-heavy tabs where it's one field among many. One component, two renderings, so migration doesn't force a visual redesign of six tabs at once.
   - Migrate one tab per change. Start with `sql-tab.tsx` and `check-commas-tab.tsx` — they're already id-keyed, so they validate the component's API without also changing behavior. The index-keyed tabs are the ones carrying the actual bug, so they follow immediately.
 
-- [ ] **Reconcile stale dataset ids after a backend restart**
+- [x] **Reconcile stale dataset ids after a backend restart**
   - Not previously on this roadmap, and it's the most user-visible dataset bug today.
   - `app/page.tsx` rehydrates `datasets` from `sessionStorage` on mount. Those ids are UUIDs from `dataset_manager.DATASETS`, which is a plain module-level dict with no persistence — the backend is deliberately stateless per `CONTRIBUTING.md`.
   - So any backend restart empties that dict while the browser tab keeps rendering the chips: a redeploy, or a free-tier spin-down — which is precisely the cold-start case that `components/WakeBackend.tsx` and the backend-status pill in `app/page.tsx` already exist to handle. The frontend knows the backend was asleep and still trusts the ids it cached.
   - Every subsequent call then 404s with `"Dataset not found"`, surfaced as a raw status-and-JSON string, or as nothing at all in the download case.
   - **Fix:** add `GET /api/datasets` returning the live id list (trivial — it's `list(DATASETS.keys())`). On mount, once the wake probe reports `ready`, diff cached ids against that list and mark the missing ones as stale: disable their actions, badge the chip, offer re-upload. Prefer marking over silently dropping — the user still wants to know *which* files they had.
 
-- [ ] **"Remove all datasets" action — and actually evict on the backend**
+- [x] **"Remove all datasets" action — and actually evict on the backend**
   - `file-toolbar.tsx` supports removing one dataset at a time via `onRemoveDataset(index)`, and `app/page.tsx` handles it by filtering React state.
   - **Nothing tells the backend.** `delete_dataset()` is defined in `app/core/dataset_manager.py` but no router calls it — grepping the backend, the only occurrence is the definition itself. Every "removed" dataset's DataFrame stays resident for the life of the process. With a 20MB upload cap and five slots, that's a slow leak that a long-lived instance will feel.
   - So this is two changes: expose `DELETE /api/dataset/{dataset_id}` wrapping the existing `delete_dataset()`, add `lib/api/delete-dataset.ts`, and call it from *both* single-remove and clear-all. Treat it as best-effort — a 404 means it's already gone, which is the desired end state, so don't block the UI on it.
   - The "Clear all" button goes next to the upload button in `file-toolbar.tsx`, behind a confirmation. `components/ui/alert-dialog.tsx` is already present; use it rather than `window.confirm`.
 
-- [ ] **Rename dataset**
+- [x] **Rename dataset**
   - Cheaper than it looks: **the backend has no concept of a dataset name.** `create_dataset(df)` stores only `{df, created_at}` — the name exists purely on the client, set from `files[idx].name` in `file-upload-modal.tsx`. So rename is one `setDatasets` update, persisted for free through the existing `sessionStorage` effect, with no API call and no server migration.
   - **But it must land after the selector unification**, because three API clients key operations by name rather than id: `data-cleaning.ts`, `transformation.ts`, and `merge-join.ts` all take `dataset_name` / `dataset_names` / `source_dataset` in their request bodies, and the corresponding tabs pass the selected *name* through. Renaming before that migration means an operation silently addresses a dataset that no longer answers to that name.
   - Worth doing as part of the same change: **none of those three contracts are implemented yet.** They target `/api/clean/*`, `/api/transform/*`, and `/api/merge/*`, and `main.py` mounts only four routers — `upload`, `sql_query`, `check_commas_script`, `download`. Nothing on the backend implements the name-keyed contract, so switching those interfaces to `dataset_id` costs nothing today and gets progressively more expensive once the endpoints exist.
