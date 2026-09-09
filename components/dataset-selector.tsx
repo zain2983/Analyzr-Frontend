@@ -38,7 +38,7 @@ export function DatasetSelector({
     <div className={className}>
       {label && <Label className="text-sm text-zinc-400">{label}</Label>}
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className={`w-full border-zinc-700 bg-zinc-800 text-zinc-100 ${label ? "mt-2" : ""}`}>
+        <SelectTrigger className={`w-full ${label ? "mt-2" : ""}`}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

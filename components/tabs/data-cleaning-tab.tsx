@@ -105,7 +105,7 @@ function FillNullsForm({ datasetId, datasets }: { datasetId: string; datasets: D
         <div>
           <Label className="text-sm text-zinc-400">Column</Label>
           <Select value={column} onValueChange={setColumn}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>
@@ -121,7 +121,7 @@ function FillNullsForm({ datasetId, datasets }: { datasetId: string; datasets: D
         <div>
           <Label className="text-sm text-zinc-400">Fill Method</Label>
           <Select value={method} onValueChange={setMethod}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -143,7 +143,7 @@ function FillNullsForm({ datasetId, datasets }: { datasetId: string; datasets: D
               value={customValue}
               onChange={(e) => setCustomValue(e.target.value)}
               placeholder="Enter value"
-              className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+              className="mt-2"
             />
           </div>
         )}
@@ -199,7 +199,7 @@ function RemoveDuplicatesForm({ datasetId, datasets }: { datasetId: string; data
         <div>
           <Label className="text-sm text-zinc-400">Keep</Label>
           <Select value={keep} onValueChange={(v) => setKeep(v as "first" | "last")}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -236,7 +236,7 @@ function FixDataTypesForm({ datasetId, datasets }: { datasetId: string; datasets
         <div>
           <Label className="text-sm text-zinc-400">Column</Label>
           <Select value={column} onValueChange={setColumn}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>
@@ -252,7 +252,7 @@ function FixDataTypesForm({ datasetId, datasets }: { datasetId: string; datasets
         <div>
           <Label className="text-sm text-zinc-400">Target Type</Label>
           <Select value={targetType} onValueChange={setTargetType}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -302,7 +302,7 @@ function CleanStringsForm({ datasetId, datasets }: { datasetId: string; datasets
         <div>
           <Label className="text-sm text-zinc-400">Column</Label>
           <Select value={column} onValueChange={setColumn}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>

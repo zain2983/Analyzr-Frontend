@@ -108,7 +108,7 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
           <div>
             <Label className="text-sm text-zinc-400">Left Join Column</Label>
             <Select value={leftColumn} onValueChange={setLeftColumn} disabled={!leftDataset}>
-              <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+              <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select column" />
               </SelectTrigger>
               <SelectContent>
@@ -124,7 +124,7 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
           <div>
             <Label className="text-sm text-zinc-400">Right Join Column</Label>
             <Select value={rightColumn} onValueChange={setRightColumn} disabled={!rightDataset}>
-              <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+              <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select column" />
               </SelectTrigger>
               <SelectContent>
@@ -141,7 +141,7 @@ function MergeForm({ datasets }: { datasets: Dataset[] }) {
         <div>
           <Label className="text-sm text-zinc-400">Join Type</Label>
           <Select value={joinType} onValueChange={setJoinType}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -202,7 +202,7 @@ function ConcatForm({ datasets }: { datasets: Dataset[] }) {
         <div>
           <Label className="text-sm text-zinc-400">Direction</Label>
           <Select value={axis} onValueChange={(v) => setAxis(v as "vertical" | "horizontal")}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -266,7 +266,7 @@ function LookupForm({ datasets }: { datasets: Dataset[] }) {
         <div>
           <Label className="text-sm text-zinc-400">Key Column (common to both)</Label>
           <Select value={keyColumn} onValueChange={setKeyColumn} disabled={!sourceDataset}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>

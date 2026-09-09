@@ -111,7 +111,7 @@ function PivotForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
         <div>
           <Label className="text-sm text-zinc-400">Mode</Label>
           <Select value={mode} onValueChange={(v) => setMode(v as "pivot" | "unpivot")}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -126,7 +126,7 @@ function PivotForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
             <div>
               <Label className="text-sm text-zinc-400">Index Column (rows)</Label>
               <Select value={indexColumn} onValueChange={setIndexColumn}>
-                <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
                 <SelectContent>
@@ -142,7 +142,7 @@ function PivotForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
             <div>
               <Label className="text-sm text-zinc-400">Columns Column (spread to columns)</Label>
               <Select value={columnsColumn} onValueChange={setColumnsColumn}>
-                <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
                 <SelectContent>
@@ -158,7 +158,7 @@ function PivotForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
             <div>
               <Label className="text-sm text-zinc-400">Values Column</Label>
               <Select value={valuesColumn} onValueChange={setValuesColumn}>
-                <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
                 <SelectContent>
@@ -174,7 +174,7 @@ function PivotForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
             <div>
               <Label className="text-sm text-zinc-400">Aggregation Function</Label>
               <Select value={aggFunc} onValueChange={setAggFunc}>
-                <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+                <SelectTrigger className="mt-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,7 +219,7 @@ function CalculateForm({ datasetId, datasets }: { datasetId: string; datasets: D
             value={newColumnName}
             onChange={(e) => setNewColumnName(e.target.value)}
             placeholder="e.g., total_price"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
         </div>
 
@@ -229,7 +229,7 @@ function CalculateForm({ datasetId, datasets }: { datasetId: string; datasets: D
             value={expression}
             onChange={(e) => setExpression(e.target.value)}
             placeholder="e.g., price * quantity"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
           <p className="mt-1 text-xs text-zinc-500">Available columns: {columns.join(", ")}</p>
         </div>
@@ -262,7 +262,7 @@ function SplitForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
         <div>
           <Label className="text-sm text-zinc-400">Column to Split</Label>
           <Select value={column} onValueChange={setColumn}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>
@@ -281,7 +281,7 @@ function SplitForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
             value={delimiter}
             onChange={(e) => setDelimiter(e.target.value)}
             placeholder="e.g., , or space"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
         </div>
 
@@ -291,7 +291,7 @@ function SplitForm({ datasetId, datasets }: { datasetId: string; datasets: Datas
             value={newColumnNames}
             onChange={(e) => setNewColumnNames(e.target.value)}
             placeholder="e.g., first_name, last_name"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
         </div>
 
@@ -348,7 +348,7 @@ function CombineForm({ datasetId, datasets }: { datasetId: string; datasets: Dat
             value={newColumnName}
             onChange={(e) => setNewColumnName(e.target.value)}
             placeholder="e.g., full_address"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
         </div>
 
@@ -358,7 +358,7 @@ function CombineForm({ datasetId, datasets }: { datasetId: string; datasets: Dat
             value={separator}
             onChange={(e) => setSeparator(e.target.value)}
             placeholder="e.g., space or comma"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
         </div>
 
@@ -401,7 +401,7 @@ function ParseDateForm({ datasetId, datasets }: { datasetId: string; datasets: D
         <div>
           <Label className="text-sm text-zinc-400">Date Column</Label>
           <Select value={column} onValueChange={setColumn}>
-            <SelectTrigger className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100">
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>
@@ -420,7 +420,7 @@ function ParseDateForm({ datasetId, datasets }: { datasetId: string; datasets: D
             value={format}
             onChange={(e) => setFormat(e.target.value)}
             placeholder="e.g., %Y-%m-%d or %m/%d/%Y"
-            className="mt-2 border-zinc-700 bg-zinc-800 text-zinc-100"
+            className="mt-2"
           />
         </div>
 
