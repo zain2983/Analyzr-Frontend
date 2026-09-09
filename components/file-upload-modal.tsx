@@ -44,6 +44,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         return {
           id: resp.dataset_id,
           name: files[idx].name,
+          sourceName: files[idx].name,
           rows: resp.rows ?? 0,
           columns: Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0),
           columnNames: Array.isArray(resp.columns) ? resp.columns : [],

@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Plus, X, FileText, Download, Loader2, AlertTriangle, Trash2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Plus, X, FileText, Download, Loader2, AlertTriangle, Trash2, Pencil } from "lucide-react"
 import type { Dataset } from "@/app/page"
 import { cn } from "@/lib/utils"
 import { downloadDataset } from "@/lib/api/download-dataset"
@@ -22,12 +23,22 @@ interface FileToolbarProps {
   datasets: Dataset[]
   onUploadClick: () => void
   onRemoveDataset: (id: string) => void
+  onRenameDataset: (id: string, name: string) => void
   onClearAll: () => void
   maxFiles?: number
 }
 
-export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, onClearAll, maxFiles = 5 }: FileToolbarProps) {
+export function FileToolbar({
+  datasets,
+  onUploadClick,
+  onRemoveDataset,
+  onRenameDataset,
+  onClearAll,
+  maxFiles = 5,
+}: FileToolbarProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState("")
 
   const handleDownload = async (dataset: Dataset) => {
     setDownloadingId(dataset.id)
@@ -38,6 +49,23 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, onClearA
     } finally {
       setDownloadingId(null)
     }
+  }
+
+  const startEditing = (dataset: Dataset) => {
+    setEditingId(dataset.id)
+    setEditingValue(dataset.name)
+  }
+
+  const commitEditing = () => {
+    const trimmed = editingValue.trim()
+    if (editingId && trimmed) {
+      onRenameDataset(editingId, trimmed)
+    }
+    setEditingId(null)
+  }
+
+  const cancelEditing = () => {
+    setEditingId(null)
   }
 
   return (
@@ -56,7 +84,7 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, onClearA
                     <div
                       key={dataset.id}
                       className={cn(
-                        "flex items-center justify-between rounded-md border px-3 py-1.5 w-[200px]",
+                        "flex items-center justify-between rounded-md border px-3 py-1.5 w-[220px]",
                         dataset.stale
                           ? "border-yellow-600/50 bg-yellow-500/5"
                           : "border-zinc-700 bg-zinc-800/50",
@@ -72,39 +100,68 @@ export function FileToolbar({ datasets, onUploadClick, onRemoveDataset, onClearA
                         ) : (
                           <FileText className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
                         )}
-                        <span
-                          className="text-sm text-zinc-200 truncate"
-                          title={dataset.stale ? `${dataset.name} — no longer on server, re-upload to use` : dataset.name}
-                        >
-                          {dataset.name}
-                        </span>
+                        {editingId === dataset.id ? (
+                          <Input
+                            autoFocus
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onBlur={commitEditing}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") commitEditing()
+                              if (e.key === "Escape") cancelEditing()
+                            }}
+                            className="h-6 px-1 py-0 text-sm"
+                          />
+                        ) : (
+                          <span
+                            className="text-sm text-zinc-200 truncate cursor-text"
+                            title={
+                              dataset.stale ? `${dataset.name} — no longer on server, re-upload to use` : dataset.name
+                            }
+                            onDoubleClick={() => startEditing(dataset)}
+                          >
+                            {dataset.name}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="ml-2 flex items-center gap-2 flex-shrink-0">
-                        {/* Download button */}
-                        <button
-                          onClick={() => handleDownload(dataset)}
-                          disabled={downloadingId === dataset.id || dataset.stale}
-                          className="text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50 disabled:hover:text-zinc-400"
-                          aria-label={`Download ${dataset.name} as CSV`}
-                          title={dataset.stale ? "Unavailable — no longer on server" : "Download CSV"}
-                        >
-                          {downloadingId === dataset.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Download className="h-3.5 w-3.5" />
-                          )}
-                        </button>
+                      {editingId !== dataset.id && (
+                        <div className="ml-2 flex items-center gap-1.5 flex-shrink-0">
+                          {/* Rename button */}
+                          <button
+                            onClick={() => startEditing(dataset)}
+                            className="text-zinc-400 transition-colors hover:text-zinc-100"
+                            aria-label={`Rename ${dataset.name}`}
+                            title="Rename"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
 
-                        {/* Remove button */}
-                        <button
-                          onClick={() => onRemoveDataset(dataset.id)}
-                          className="text-zinc-400 transition-colors hover:text-zinc-100"
-                          aria-label={`Remove ${dataset.name}`}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                          {/* Download button */}
+                          <button
+                            onClick={() => handleDownload(dataset)}
+                            disabled={downloadingId === dataset.id || dataset.stale}
+                            className="text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50 disabled:hover:text-zinc-400"
+                            aria-label={`Download ${dataset.name} as CSV`}
+                            title={dataset.stale ? "Unavailable — no longer on server" : "Download CSV"}
+                          >
+                            {downloadingId === dataset.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Download className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+
+                          {/* Remove button */}
+                          <button
+                            onClick={() => onRemoveDataset(dataset.id)}
+                            className="text-zinc-400 transition-colors hover:text-zinc-100"
+                            aria-label={`Remove ${dataset.name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

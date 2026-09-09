@@ -1,2 +1,1 @@
-// export const BACKEND_URL = 'http://localhost:8000'
-export const BACKEND_URL = 'https://analyzr-backend.onrender.com'
+export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://analyzr-backend.onrender.com'

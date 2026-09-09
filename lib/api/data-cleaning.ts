@@ -1,36 +1,36 @@
 // API calls for data cleaning operations
-// TODO: Update base URL to your FastAPI backend endpoint
+// TODO: backend does not implement /api/clean/* yet
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { BACKEND_URL } from "@/lib/config"
 
 export interface FillNullsRequest {
-  dataset_name: string
+  dataset_id: string
   column: string
   method: "mean" | "median" | "mode" | "forward" | "backward" | "drop" | "custom"
   custom_value?: string | number
 }
 
 export interface RemoveDuplicatesRequest {
-  dataset_name: string
+  dataset_id: string
   key_columns: string[]
   keep: "first" | "last"
 }
 
 export interface FixDataTypesRequest {
-  dataset_name: string
+  dataset_id: string
   column: string
   target_type: "string" | "number" | "date" | "boolean"
 }
 
 export interface CleanStringsRequest {
-  dataset_name: string
+  dataset_id: string
   column: string
   operations: ("trim" | "lowercase" | "uppercase" | "remove_special")[]
 }
 
 export async function fillNullValues(request: FillNullsRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/clean/fill-nulls`, {
+  const response = await fetch(`${BACKEND_URL}/api/clean/fill-nulls`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -40,7 +40,7 @@ export async function fillNullValues(request: FillNullsRequest) {
 
 export async function removeDuplicates(request: RemoveDuplicatesRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/clean/remove-duplicates`, {
+  const response = await fetch(`${BACKEND_URL}/api/clean/remove-duplicates`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -50,7 +50,7 @@ export async function removeDuplicates(request: RemoveDuplicatesRequest) {
 
 export async function fixDataTypes(request: FixDataTypesRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/clean/fix-types`, {
+  const response = await fetch(`${BACKEND_URL}/api/clean/fix-types`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -60,7 +60,7 @@ export async function fixDataTypes(request: FixDataTypesRequest) {
 
 export async function cleanStrings(request: CleanStringsRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/clean/clean-strings`, {
+  const response = await fetch(`${BACKEND_URL}/api/clean/clean-strings`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),

@@ -1,31 +1,31 @@
 // API calls for merge and join operations
-// TODO: Update base URL to your FastAPI backend endpoint
+// TODO: backend does not implement /api/merge/* yet
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { BACKEND_URL } from "@/lib/config"
 
 export interface MergeCSVsRequest {
-  dataset_names: string[]
+  dataset_ids: string[]
   left_on: string
   right_on: string
   how: "inner" | "left" | "right" | "outer"
 }
 
 export interface ConcatCSVsRequest {
-  dataset_names: string[]
+  dataset_ids: string[]
   axis: "vertical" | "horizontal"
   ignore_index: boolean
 }
 
 export interface LookupRequest {
-  source_dataset: string
-  lookup_dataset: string
+  source_dataset_id: string
+  lookup_dataset_id: string
   key_column: string
   value_columns: string[]
 }
 
 export async function mergeCSVs(request: MergeCSVsRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/merge/join`, {
+  const response = await fetch(`${BACKEND_URL}/api/merge/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -35,7 +35,7 @@ export async function mergeCSVs(request: MergeCSVsRequest) {
 
 export async function concatCSVs(request: ConcatCSVsRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/merge/concat`, {
+  const response = await fetch(`${BACKEND_URL}/api/merge/concat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -45,7 +45,7 @@ export async function concatCSVs(request: ConcatCSVsRequest) {
 
 export async function lookupValues(request: LookupRequest) {
   // TODO: Implement actual API call
-  const response = await fetch(`${API_BASE_URL}/api/merge/lookup`, {
+  const response = await fetch(`${BACKEND_URL}/api/merge/lookup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),

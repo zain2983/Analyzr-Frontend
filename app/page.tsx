@@ -36,6 +36,8 @@ export type TabId =
 export interface Dataset {
   id: string
   name: string
+  /** Original uploaded filename, preserved across renames (e.g. for download filenames and repair reports). */
+  sourceName: string
   rows: number
   columns: number
   columnNames: string[]
@@ -128,6 +130,10 @@ export default function Page() {
     deleteDataset(id).catch((err) => console.error("Failed to evict dataset on backend:", err))
   }
 
+  const handleRenameDataset = (id: string, name: string) => {
+    setDatasets((prev) => prev.map((d) => (d.id === id ? { ...d, name } : d)))
+  }
+
   const handleClearAllDatasets = () => {
     const ids = datasets.map((d) => d.id)
     setDatasets([])
@@ -179,6 +185,7 @@ export default function Page() {
           datasets={datasets}
           onUploadClick={() => setShowUploadModal(true)}
           onRemoveDataset={handleRemoveDataset}
+          onRenameDataset={handleRenameDataset}
           onClearAll={handleClearAllDatasets}
           maxFiles={5}
         />
