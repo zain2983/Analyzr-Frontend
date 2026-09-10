@@ -9,8 +9,11 @@ import { oneDark } from "@codemirror/theme-one-dark"
 import type { EditorView } from "@codemirror/view"
 import type { Dataset } from "@/app/page"
 import { runQuery } from "@/lib/api/sql"
+import { exportQueryResults } from "@/lib/api/export-query"
 import { DatasetSelector } from "@/components/dataset-selector"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { Download, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface SQLTabProps {
   datasets: Dataset[]
@@ -73,6 +76,10 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
   // Store query in a ref — never in state — so onChange never triggers re-renders
   const queryRef = useRef(DEFAULT_QUERY)
   const editorViewRef = useRef<EditorView | null>(null)
+  // The query that actually produced `resultRows` — export should match what's
+  // on screen, not whatever's been typed into the editor since the last run.
+  const lastExecutedQueryRef = useRef("")
+  const [exporting, setExporting] = useState(false)
 
   const selectedDs = datasets.find((d) => d.id === selectedDatasetId)
 
@@ -109,12 +116,28 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
       const data = Array.isArray(res?.data) ? res.data : []
       setResultRows(data)
       setTotalRows(typeof res?.rows === "number" ? res.rows : data.length)
+      lastExecutedQueryRef.current = trimmed
     } catch (err: any) {
       setError(err?.message || "Query failed")
       setResultRows([])
       setTotalRows(0)
     } finally {
       setLoading(false)
+    }
+  }, [selectedDatasetId])
+
+  const handleExport = useCallback(async () => {
+    if (!selectedDatasetId || !lastExecutedQueryRef.current) return
+    setExporting(true)
+    try {
+      const { truncated } = await exportQueryResults(selectedDatasetId, lastExecutedQueryRef.current)
+      if (truncated) {
+        toast.warning("Export capped at 200,000 rows — the result set is larger than that.")
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed")
+    } finally {
+      setExporting(false)
     }
   }, [selectedDatasetId])
 
@@ -194,11 +217,27 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
   const resultsCard = (
     <Card className="h-full border-zinc-800 bg-zinc-900">
       <div className="flex h-full flex-col p-4">
-        <h3 className="mb-4 shrink-0 text-lg font-semibold text-zinc-100">
-          {totalRows > resultRows.length
-            ? `Showing first ${resultRows.length} of ${totalRows} rows`
-            : `Results (${totalRows} row${totalRows === 1 ? "" : "s"})`}
-        </h3>
+        <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-zinc-100">
+            {totalRows > resultRows.length
+              ? `Showing first ${resultRows.length} of ${totalRows} rows`
+              : `Results (${totalRows} row${totalRows === 1 ? "" : "s"})`}
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting}
+            className="h-7 border-zinc-700 bg-zinc-950 text-xs text-zinc-300 hover:bg-zinc-800"
+          >
+            {exporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            Download results
+          </Button>
+        </div>
         <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full">
             <thead>
