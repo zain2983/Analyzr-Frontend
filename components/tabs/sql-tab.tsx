@@ -10,6 +10,7 @@ import type { EditorView } from "@codemirror/view"
 import type { Dataset } from "@/app/page"
 import { runQuery } from "@/lib/api/sql"
 import { DatasetSelector } from "@/components/dataset-selector"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 
 interface SQLTabProps {
   datasets: Dataset[]
@@ -191,14 +192,14 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
   )
 
   const resultsCard = (
-    <Card className="border-zinc-800 bg-zinc-900">
-      <div className="p-4">
-        <h3 className="mb-4 text-lg font-semibold text-zinc-100">
+    <Card className="h-full border-zinc-800 bg-zinc-900">
+      <div className="flex h-full flex-col p-4">
+        <h3 className="mb-4 shrink-0 text-lg font-semibold text-zinc-100">
           {totalRows > resultRows.length
             ? `Showing first ${resultRows.length} of ${totalRows} rows`
             : `Results (${totalRows} row${totalRows === 1 ? "" : "s"})`}
         </h3>
-        <div className="overflow-x-auto">
+        <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-700">
@@ -226,10 +227,26 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
     </Card>
   )
 
+  if (resultRows.length === 0) {
+    return <div className="space-y-6">{queryCard}</div>
+  }
+
+  // A resizable split only once there are results to grow into — before
+  // that, a single stacked card reads better than an empty results pane.
+  // The group needs a fixed-height ancestor: react-resizable-panels sets an
+  // inline height:100% on itself, which collapses to 0 (and breaks
+  // CodeMirror's internal layout measurement) without one.
   return (
-    <div className="space-y-6">
-      {queryCard}
-      {resultRows.length > 0 && resultsCard}
+    <div className="h-[75vh] min-h-[500px]">
+      <ResizablePanelGroup direction="vertical" className="rounded-lg">
+        <ResizablePanel defaultSize={45} minSize={25}>
+          <div className="h-full overflow-auto pr-1">{queryCard}</div>
+        </ResizablePanel>
+        <ResizableHandle withHandle className="my-2 bg-transparent" />
+        <ResizablePanel defaultSize={55} minSize={20}>
+          {resultsCard}
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   )
 }

@@ -17,9 +17,12 @@ Line references point at the state of the code as of this writing; treat them as
 
 ### Remaining gaps in this section
 
-- [ ] **The server-side filename is a UUID.** `download.py` sets `filename="{dataset_id}.csv"`. It only looks right in the browser because the frontend overrides it with `a.download = filename` from client-held `Dataset.name`. Any non-browser consumer (curl, a future API user) gets `9f3c…-….csv`. Either have the backend store the original filename at `create_dataset()` time and echo it in the header, or consciously document that naming is the frontend's job. Right now it's neither — it works by accident.
-- [ ] **Download failures are invisible.** `file-toolbar.tsx` catches the error and only `console.error`s it; the spinner stops and nothing else happens, which reads as "the download silently didn't work". `sonner` is already a dependency and `components/ui/sonner.tsx` exists — surface a toast. This matters most for the stale-id case in Section 2, where a 404 is the *expected* failure after a backend restart.
+- [x] **The server-side filename is a UUID.** `download.py` sets `filename="{dataset_id}.csv"`. It only looks right in the browser because the frontend overrides it with `a.download = filename` from client-held `Dataset.name`. Any non-browser consumer (curl, a future API user) gets `9f3c…-….csv`. Either have the backend store the original filename at `create_dataset()` time and echo it in the header, or consciously document that naming is the frontend's job. Right now it's neither — it works by accident.
+  - **Resolved.** The backend already accepted an optional `filename` query param (`download.py` + `safe_download_filename`) but nothing called it with one. `lib/api/download-dataset.ts` now sends the client-held, sanitized name on the request, so `Content-Disposition` carries the real name for curl and any other non-browser consumer, not just the browser (which was already overriding it client-side).
+- [x] **Download failures are invisible.** `file-toolbar.tsx` catches the error and only `console.error`s it; the spinner stops and nothing else happens, which reads as "the download silently didn't work". `sonner` is already a dependency and `components/ui/sonner.tsx` exists — surface a toast. This matters most for the stale-id case in Section 2, where a 404 is the *expected* failure after a backend restart.
+  - **Shipped.** `handleDownload` in `file-toolbar.tsx` now fires `toast.error(...)` with the parsed API error message alongside the existing `console.error`.
 - [ ] **No export of a SQL result set.** Distinct from exporting the dataset: `/api/query` truncates `data` to 100 rows, so a client-side export of the results table would silently drop everything past row 100. This needs a query-scoped backend endpoint (run the query, stream the full frame) rather than a frontend change. Not in scope for this pass, but don't ship a "download results" button without it.
+  - **Still blocked.** No such backend endpoint exists yet — out of scope for a frontend-only pass, same as originally noted.
 
 ## 2. Datasets
 
@@ -65,7 +68,7 @@ Ordered first because everything else in this file touches dataset selection, an
 
 ## 3. Compare Tab
 
-- [ ] **Fuzzy column matching (detection)**
+- [x] **Fuzzy column matching (detection)**
   - `components/tabs/compare-tab.tsx` builds a `Set` of every column name across datasets, then tests presence with `dataset.columnNames.includes(column)` — exact and case-sensitive. `Email` and `email` are two unrelated rows in the matrix today, and both land in "unique columns", which is exactly the signal a user would read as "these files disagree".
   - **No fuzzy dependency, hand-roll it.** `package.json` has no `fuzzysort` / `Fuse` / `leven`. The problem is small and bounded — at most 5 datasets, tens of columns each, short ASCII-ish strings — so a `lib/fuzzy-columns.ts` of a few dozen lines beats pulling in a general-purpose search library whose ranking model is tuned for a different problem (interactive prefix search over long documents).
   - Layer the checks cheapest-first, and keep them separable so each can be tuned or disabled:
@@ -73,18 +76,21 @@ Ordered first because everything else in this file touches dataset selection, an
     2. **Token containment** — split on `_`, spaces, and camel boundaries; flag when one token set is a subset of the other. Catches `email` vs `email_address`, which normalization alone misses because the strings genuinely differ.
     3. **Levenshtein ratio** on the normalized forms, threshold around 0.8. Catches abbreviations like `customer_id` vs `cust_id` that neither earlier layer gets. Run it last — it's the only quadratic-ish step, and by then most pairs are resolved.
   - **Always present as suggestions, never auto-merge.** A wrong merge doesn't throw an error, it quietly tells the user two different columns are the same one — and the entire purpose of this tab is letting them trust a cross-file comparison. Show the matched pair with its score and let the user accept.
+  - **Shipped.** `lib/fuzzy-columns.ts` implements the three-layer check (normalize → token containment → Levenshtein ratio ≥ 0.8) exactly as scoped, hand-rolled with no new dependency. `compare-tab.tsx` runs it over the "unique columns" set only (columns already exact-matched are excluded) and renders a "Suggested Matches" card with each pair's score and which layer matched — suggestions only, nothing merges.
 
 - [ ] **Inline merge — deliberately split from detection**
   - Merging two near-duplicate columns means renaming a column in the server-held `df`. There is no endpoint for that: `main.py` mounts upload, query, check-commas, and download, and none of them mutate.
   - A frontend-only "merge" would mutate `Dataset.columnNames` and change nothing real — that field is never sent on any request, and the backend re-derives columns from its own `df` on every call. The Compare Tab would show a merge that no other tab or query agrees with.
   - So: ship detection now (independently useful — it turns a wall of "unique" rows into a short list of likely matches), and hold merge until the transform pipeline from `CONTRIBUTING.md`'s to-dos exists. At that point this becomes a thin caller of `POST /api/transform/rename`, not a feature of its own.
+  - **Still blocked.** `POST /api/transform/rename` doesn't exist yet — no backend change landed alongside this pass, so this stays deliberately undone per the reasoning above.
 
-- [ ] **Hover preview of sample data**
+- [x] **Hover preview of sample data**
   - Blocked on something not previously captured here: **the frontend holds no row data at all.** `Dataset.data` is declared optional in `app/page.tsx` and is never populated — `file-upload-modal.tsx` constructs each `Dataset` from the upload response, which carries only `dataset_id`, `rows`, and `columns`. (This is also why `eda-tab.tsx` computes its column stats over `dataset.data?.map(...) || []` and reports zeros for everything.)
   - Two ways to get sample values: a new `GET /api/dataset/{id}/sample` endpoint, or reuse the shipped `/api/query` with `SELECT "col" FROM dataset WHERE "col" IS NOT NULL LIMIT 5`.
   - **Prefer reusing `/api/query`** — it costs zero backend work. `sql_query.py` already registers the frame in DuckDB under both `data` and `dataset`, already normalizes `NaN` to `None` so the JSON is clean, and already 404s consistently. A dedicated sample endpoint would reimplement all three for no gain at this scale.
   - Fetch lazily on hover-open, and cache per `dataset.id + column` in a `useRef` map so re-hovering the same header doesn't re-query. `components/ui/hover-card.tsx` and `@radix-ui/react-hover-card` are already installed.
   - **Quote the column identifier** (`"col"`) when building that SQL. Column names come from arbitrary user files and routinely contain spaces, punctuation, or reserved words; an unquoted identifier is both a correctness bug and an injection seam. Escape embedded double-quotes by doubling them.
+  - **Shipped.** `lib/api/column-sample.ts` reuses `/api/query` exactly as scoped, with the identifier quoted and embedded `"` doubled. `compare-tab.tsx`'s matrix cells wrap each present-column checkmark in a `HoverCard` that fetches lazily on hover-open and caches per `datasetId + column` in a `useRef` map, so re-hovering the same cell doesn't re-query.
 
 ## 4. SQL Tab
 
@@ -111,8 +117,9 @@ Ordered first because everything else in this file touches dataset selection, an
 
 - [x] **Error presentation** — parse `detail` out of the JSON body in the API client and throw that alone, so the tab shows the DuckDB message without the status code and braces. Applied to `sql.ts`, `upload-dataset.ts`, and `download-dataset.ts` via a shared `parseApiError` helper.
 - [x] **Drop debug logging** — removed the `console.log` of every query payload and response in `sql-tab.tsx` and `lib/api/sql.ts`.
-- [ ] **Layout** — the selector, editor, and run button still share one flat `Card`, with results in a second. `react-resizable-panels` is already a dependency — a resizable split would let users grow the results pane, which matters for the wide tables this tab produces.
+- [x] **Layout** — the selector, editor, and run button still share one flat `Card`, with results in a second. `react-resizable-panels` is already a dependency — a resizable split would let users grow the results pane, which matters for the wide tables this tab produces.
   - Attempted and reverted: a vertical `ResizablePanelGroup` around the query/results cards caused CodeMirror's internal layout measurement to break (editor content became invisible after the panel resized), traced to `PanelGroup` always setting an inline `height: 100%` that fights Tailwind height classes. Revisit with a fixed-height wrapper div around the whole group (not just a class on it) if this is picked back up.
+  - **Shipped, following that exact note.** `sql-tab.tsx` now wraps `ResizablePanelGroup` in a `div` with an explicit `h-[75vh] min-h-[500px]` — a real ancestor height, not a class on the group itself — which is what the earlier attempt was missing. Only switches to the resizable split once there are results to grow into (`resultRows.length > 0`); before that it's still the single stacked card, since an empty results pane isn't worth a resize handle. Verified in the browser: dragging the handle resizes both panes and CodeMirror's content stays visible and editable throughout.
 
 ## 5. Upload — JSON and XLSX support
 

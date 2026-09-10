@@ -7,6 +7,7 @@ import { Plus, X, FileText, Download, Loader2, AlertTriangle, Trash2, Pencil, Wr
 import type { Dataset } from "@/app/page"
 import { cn } from "@/lib/utils"
 import { downloadDataset } from "@/lib/api/download-dataset"
+import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +51,7 @@ export function FileToolbar({
       await downloadDataset(dataset.id, dataset.name)
     } catch (err) {
       console.error(err)
+      toast.error(err instanceof Error ? err.message : "Download failed")
     } finally {
       setDownloadingId(null)
     }
