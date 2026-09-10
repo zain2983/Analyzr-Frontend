@@ -37,6 +37,11 @@ Ordered first because everything else in this file touches dataset selection, an
     - *`id` is what the backend keys on.* `dataset_manager.DATASETS` is a dict of UUID → `{df, created_at}`, and every working endpoint (`/api/query`, `/api/check-commas`, `/api/dataset/{id}/download`) takes `dataset_id`. Selector state keyed by `id` maps 1:1 onto what any API call needs, with no lookup step that can fail.
   - **Implementation:** one `components/dataset-selector.tsx` taking `value: string` (the id), `onChange: (id: string) => void`, `datasets: Dataset[]`, and a `variant: "grid" | "dropdown"` — the two shapes need to coexist, because the card grid suits tabs where picking a dataset *is* the page, and the dropdown suits the form-heavy tabs where it's one field among many. One component, two renderings, so migration doesn't force a visual redesign of six tabs at once.
   - Migrate one tab per change. Start with `sql-tab.tsx` and `check-commas-tab.tsx` — they're already id-keyed, so they validate the component's API without also changing behavior. The index-keyed tabs are the ones carrying the actual bug, so they follow immediately.
+  - **Superseded:** the two-variant plan above shipped, but the `"grid"` card-buttons variant (`sql-tab.tsx`, `eda-tab.tsx`, `check-commas-tab.tsx`) was later removed on user feedback that it looked inconsistent with the rest of the app. `DatasetSelector` now renders only the dropdown; the `variant` prop is gone.
+
+- [x] **Consistent `<Select>` styling, and highlight the active dataset in the file toolbar**
+  - The shared `components/ui/select.tsx` fell back to shadcn's generic `--popover`/`--accent` theme tokens for the open dropdown panel and item hover, while every call site pasted the same `border-zinc-700 bg-zinc-800 text-zinc-100` override just for the closed trigger — flat, low-contrast, and inconsistent with the rest of the app's zinc/blue palette. Baked zinc borders, a real shadow, and blue hover/selected states into `SelectTrigger`/`SelectContent`/`SelectItem` directly so every `<Select>` (dataset picker, join columns, join type, etc.) looks consistent by default, and dropped the ~13 duplicate per-usage overrides.
+  - The top file-toolbar strip gave no indication of which dataset was active while working in a single-dataset tab. Lifted `selectedDatasetId` out of `sql-tab.tsx`, `eda-tab.tsx`, and `check-commas-tab.tsx` (each tracked it independently) into shared state in `app/page.tsx` — switching between those three tabs now also keeps the same dataset selected — and pass it to `file-toolbar.tsx` so the matching chip gets a blue border/accent, shown only while `activeTab` is one of that trio.
 
 - [x] **Reconcile stale dataset ids after a backend restart**
   - Not previously on this roadmap, and it's the most user-visible dataset bug today.
@@ -83,30 +88,31 @@ Ordered first because everything else in this file touches dataset selection, an
 
 ## 4. SQL Tab
 
-- [ ] **Fix the result count — a correctness bug, not polish**
+- [x] **Fix the result count — a correctness bug, not polish**
   - `sql_query.py` returns `rows: len(result_df)` (the true match count) alongside `data: result_df.head(100).to_dict(...)` (the capped payload).
   - `sql-tab.tsx` reads `res.data` into `resultRows` and then renders the heading from `resultRows.length`. A query matching 5,000 rows displays **"Results (100 rows)"**.
   - That's actively misleading — a user checking "how many records match this filter" gets a wrong answer with no indication it's truncated. Keep `res.rows` in state and render "Showing first 100 of 5,000". Do this before any layout work.
 
-- [ ] **Autocomplete: cover both table aliases, then add types**
+- [x] **Autocomplete: cover both table aliases, then add types**
   - `sql-tab.tsx` builds the CodeMirror SQL extension with `schema: { dataset: selectedDs.columnNames }` and `defaultTable: "dataset"`. But the backend registers the frame under **two** names — `con.register("data", df)` and `con.register("dataset", df)` — so `SELECT * FROM data` is valid SQL that gets no completions. Add `data` to the schema map; it's a one-line fix that removes a silent dead end.
   - Type hints need a backend change first: `/api/upload` returns `list(df.columns)` and nothing else. Adding `df.dtypes.astype(str).to_dict()` to that response is additive — existing clients ignore the new key — and gives the editor enough to annotate completions and to offer type-appropriate snippets (date range filters on datetime columns, aggregates on numerics).
 
-- [ ] **Starter-query picker — and why it can't use `useState`**
+- [x] **Starter-query picker — and why it can't use `useState`**
   - The editor is intentionally uncontrolled: the query text lives in `queryRef`, fed to CodeMirror as `defaultValue`, with a comment at the declaration explaining the reason — keeping it out of React state stops every keystroke re-rendering the tab.
   - So inserting a starter query cannot be a `setQuery(...)` call; `defaultValue` is read once and won't re-apply. It needs an `EditorView` handle via `onCreateEditor`, then an explicit `view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: q } })`, *and* a write to `queryRef.current` so `execute()` sends what the user sees.
   - Spelled out here because the obvious implementation is to lift the query into state, which would regress the exact typing-performance problem the ref was introduced to solve.
   - Starter set worth having: `SELECT * FROM dataset LIMIT 10`, `SELECT col, COUNT(*) FROM dataset GROUP BY col ORDER BY 2 DESC`, and a null-audit query. Generate them against the selected dataset's real column names rather than shipping placeholder text.
+  - Shipped with an additional fix beyond scope: `defaultValue` turned out not to be a real prop on the installed `@uiw/react-codemirror` version, so the editor rendered blank on every mount — switched to `value`, which is what actually seeds the initial doc here.
 
-- [ ] **Reconsider `sanitizeQuery`**
+- [x] **Reconsider `sanitizeQuery`**
   - `sanitizeQuery` strips everything after the first `--` on each line, flattens newlines, and then rewrites a `LIMIT n WHERE ...` pattern into `WHERE ... LIMIT n` via regex.
   - It has no notion of string literals, so `WHERE code = 'a--b'` is truncated to `WHERE code = 'a` and DuckDB rejects it with a parse error that points nowhere near the real cause. The `LIMIT`/`WHERE` rewrite is likewise guessing at intent and silently changing what the user typed.
   - **Recommendation: delete the rewriting and send the query as-is.** DuckDB is the authority on whether the SQL is valid and already returns a precise message that `sql_query.py` surfaces as a 400 `detail`. Silently editing a user's query to make it parse is worse than an honest error. If comment-stripping turns out to be genuinely needed, do it with a single-pass scanner that tracks quote state — not line-wise `indexOf`.
 
-- [ ] **Error and loading presentation**
-  - Errors render as inline red text showing the raw throw from `lib/api/sql.ts`: `Query failed: 400 {"detail":"SQL error: ..."}`. Parse `detail` out of the JSON body in the API client and throw that alone, so the tab can show the DuckDB message without the status code and braces. The same fix applies to `upload-dataset.ts` and `download-dataset.ts`, which build error strings identically.
-  - Drop the `console.log` of every query payload and response in `sql-tab.tsx` and `lib/api/sql.ts` before this ships.
-  - Layout: the selector, editor, and run button share one flat `Card`, with results in a second. `react-resizable-panels` is already a dependency — a resizable split would let users grow the results pane, which matters for the wide tables this tab produces.
+- [x] **Error presentation** — parse `detail` out of the JSON body in the API client and throw that alone, so the tab shows the DuckDB message without the status code and braces. Applied to `sql.ts`, `upload-dataset.ts`, and `download-dataset.ts` via a shared `parseApiError` helper.
+- [x] **Drop debug logging** — removed the `console.log` of every query payload and response in `sql-tab.tsx` and `lib/api/sql.ts`.
+- [ ] **Layout** — the selector, editor, and run button still share one flat `Card`, with results in a second. `react-resizable-panels` is already a dependency — a resizable split would let users grow the results pane, which matters for the wide tables this tab produces.
+  - Attempted and reverted: a vertical `ResizablePanelGroup` around the query/results cards caused CodeMirror's internal layout measurement to break (editor content became invisible after the panel resized), traced to `PanelGroup` always setting an inline `height: 100%` that fights Tailwind height classes. Revisit with a fixed-height wrapper div around the whole group (not just a class on it) if this is picked back up.
 
 ## 5. Upload — JSON and XLSX support
 
