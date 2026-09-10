@@ -118,7 +118,7 @@ Ordered first because everything else in this file touches dataset selection, an
 
 **Why this moved down:** not a priority drop. Everything below — dispatching on file type, inferring shape and dtypes, reporting per-format problems back to the user — is the same "detect → parse → normalize" seam that Section 6 builds properly. Landing JSON/XLSX first means writing that logic once for the new formats and then again, differently, for the repair pipeline. The two exceptions are the format-mismatch bug and the case-sensitivity bug below, which should be fixed now regardless of sequencing.
 
-- [ ] **The dropzone advertises formats the backend rejects — fix now**
+- [x] **The dropzone advertises formats the backend rejects — fix now**
   - `components/file-upload.tsx` sets `accept=".csv,.json,.xlsx"` and filters with `/\.(csv|json|xlsx)$/i`, and the help text explicitly promises all three.
   - `app/api/upload.py` rejects anything that isn't `.csv` with a 400 before reading a byte.
   - A user dragging an `.xlsx` gets `Upload failed: 400 {"detail":"Only CSV files are allowed"}` rendered verbatim in the modal. Either gate the dropzone back to `.csv` until the backend catches up, or land the backend change first — but don't leave the UI promising something the API refuses.
