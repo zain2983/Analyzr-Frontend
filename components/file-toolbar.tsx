@@ -8,6 +8,15 @@ import type { Dataset } from "@/app/page"
 import { cn } from "@/lib/utils"
 import { downloadDataset } from "@/lib/api/download-dataset"
 import { toast } from "sonner"
+import { fetchRepairPreview, type RepairPreviewRow } from "@/lib/api/repair-preview"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +29,99 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+
+/** Fetches lazily on dialog open and caches for the component's lifetime — the underlying data never changes. */
+function RepairPreviewDialog({ datasetId, datasetName }: { datasetId: string; datasetName: string }) {
+  const [rows, setRows] = useState<RepairPreviewRow[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open || rows !== null || loading) return
+    setLoading(true)
+    setError(null)
+    fetchRepairPreview(datasetId)
+      .then(setRows)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load preview"))
+      .finally(() => setLoading(false))
+  }
+
+  const columns = rows && rows.length > 0 ? Object.keys(rows[0].before) : []
+
+  return (
+    <Dialog onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <button
+          className="text-xs font-medium text-blue-400 hover:text-blue-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          View before/after rows
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl border-zinc-700 bg-zinc-900 text-zinc-100">
+        <DialogHeader>
+          <DialogTitle>Repair preview — {datasetName}</DialogTitle>
+          <DialogDescription className="text-zinc-400">
+            A sample of rows as originally uploaded, next to how the repair pipeline normalized them.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading && (
+          <div className="flex items-center gap-2 py-6 text-sm text-zinc-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading…
+          </div>
+        )}
+
+        {error && <p className="py-6 text-sm text-red-400">{error}</p>}
+
+        {!loading && !error && rows && rows.length === 0 && (
+          <p className="py-6 text-sm text-zinc-500">No sample rows available for this dataset.</p>
+        )}
+
+        {!loading && !error && rows && rows.length > 0 && (
+          <div className="max-h-[60vh] overflow-auto rounded-md border border-zinc-800">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-zinc-950">
+                <tr className="border-b border-zinc-800">
+                  <th className="px-3 py-2 text-left font-medium text-zinc-400">#</th>
+                  <th className="px-3 py-2 text-left font-medium text-zinc-400">Column</th>
+                  <th className="px-3 py-2 text-left font-medium text-zinc-400">Before</th>
+                  <th className="px-3 py-2 text-left font-medium text-zinc-400">After</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIdx) =>
+                  columns.map((col, colIdx) => {
+                    const before = row.before[col]
+                    const after = row.after[col]
+                    const changed = before !== after
+                    return (
+                      <tr key={`${rowIdx}-${col}`} className="border-b border-zinc-800/50">
+                        {colIdx === 0 && (
+                          <td className="px-3 py-2 align-top text-zinc-500" rowSpan={columns.length}>
+                            {rowIdx + 1}
+                          </td>
+                        )}
+                        <td className="px-3 py-2 text-zinc-400">{col}</td>
+                        <td className={cn("px-3 py-2", changed ? "text-red-400" : "text-zinc-300")}>
+                          {before === null ? <span className="italic text-zinc-600">null</span> : before}
+                        </td>
+                        <td className={cn("px-3 py-2", changed ? "text-green-400" : "text-zinc-300")}>
+                          {after === null ? <span className="italic text-zinc-600">null</span> : after}
+                        </td>
+                      </tr>
+                    )
+                  }),
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 interface FileToolbarProps {
   datasets: Dataset[]
@@ -164,6 +266,9 @@ export function FileToolbar({
                                     </li>
                                   ))}
                                 </ul>
+                                <div className="mt-3 border-t border-zinc-700 pt-2">
+                                  <RepairPreviewDialog datasetId={dataset.id} datasetName={dataset.name} />
+                                </div>
                               </HoverCardContent>
                             </HoverCard>
                           )}
