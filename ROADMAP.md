@@ -122,18 +122,21 @@ Ordered first because everything else in this file touches dataset selection, an
   - `components/file-upload.tsx` sets `accept=".csv,.json,.xlsx"` and filters with `/\.(csv|json|xlsx)$/i`, and the help text explicitly promises all three.
   - `app/api/upload.py` rejects anything that isn't `.csv` with a 400 before reading a byte.
   - A user dragging an `.xlsx` gets `Upload failed: 400 {"detail":"Only CSV files are allowed"}` rendered verbatim in the modal. Either gate the dropzone back to `.csv` until the backend catches up, or land the backend change first — but don't leave the UI promising something the API refuses.
-- [ ] **Case-sensitivity bug — fix regardless of this section's sequencing**
+  - **Resolved by landing backend format dispatch below** rather than gating the dropzone — the promise is now true.
+- [x] **Case-sensitivity bug — fix regardless of this section's sequencing**
   - The backend check is `file.filename.endswith(".csv")`, so `DATA.CSV` (a very normal export from Windows tooling) is rejected. The frontend's regex is case-insensitive, so the two sides disagree about what a valid file is. Use `Path(file.filename).suffix.lower()`.
-- [ ] **Backend format dispatch**
+- [x] **Backend format dispatch**
   - `.csv` → `pd.read_csv`; `.json` → `pd.read_json` / `pd.json_normalize`; `.xlsx` → `pd.read_excel`.
   - **`read_excel` requires `openpyxl`, which is not in `requirements.txt`** (currently: fastapi, uvicorn, pandas, duckdb, python-multipart). Pandas imports it lazily, so this fails at *request* time with an `ImportError`, not at boot — it would pass any import-level smoke test and then break in production on the first upload. Add it in the same change.
   - **JSON shape:** an array of objects maps cleanly to a frame; a nested or envelope-wrapped document does not. Use `pd.json_normalize` for nesting, and reject non-record-shaped input with a specific message rather than producing a one-row frame whose cells are dicts — that "succeeds" and then breaks every downstream tab.
   - **XLSX sheets:** `pd.read_excel(..., sheet_name=None)` returns a dict of frames. Decide explicitly rather than by default: first sheet with the chosen sheet name echoed in the response is the right v1; a sheet picker means a two-phase upload flow and a real UI change, so don't drift into it accidentally.
   - **Size cap:** the 20MB check seeks the uploaded temp file. XLSX is zip-compressed, so a 20MB file can expand into a far larger frame in memory — worth a post-parse row/cell guard, especially given datasets are never evicted today (Section 2).
-- [ ] **Tighten the upload contract**
+  - Shipped as `pd.ExcelFile(...).parse(sheet_name)` rather than `read_excel(sheet_name=None)`, so only the first sheet is ever parsed — no wasted work reading sheets that get thrown away. Needed one fix beyond the plan: openpyxl requires a real seekable stream, which Starlette's `SpooledTemporaryFile` doesn't fully provide — reading it into `io.BytesIO` first fixed a `'SpooledTemporaryFile' object has no attribute 'seekable'` error. The post-parse guard landed as a flat 5M-cell cap, verified against a 13MB XLSX (well under the 20MB file cap) that expands to 6M cells and correctly gets rejected.
+- [x] **Tighten the upload contract**
   - `lib/api/upload-dataset.ts` sends an optional `dataset_id` form field that `upload.py` doesn't declare, so FastAPI silently discards it. Either implement client-supplied ids or remove the field — a parameter that looks supported but isn't will eventually be trusted by someone.
   - Parse FastAPI's `detail` in `uploadDataset` and throw that, so `FileUploadModal` can render "XLSX files aren't supported yet" instead of a status code and a JSON blob.
   - Verify `rows` / `columns` / `columnNames` populate correctly for each format. `file-upload-modal.tsx` currently tolerates `columns` being either an array *or* a number (`Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0)`) — defensive code around an unsettled response shape. Once the contract is pinned per format, pick one shape and drop the branch.
+  - The `detail`-parsing half of this had already shipped in Section 4's `parseApiError` work. Removed the unused `dataset_id` field and the array-or-number branch; verified `rows`/`columns`/`columnNames` end to end for all three formats via curl and through the actual upload modal in the browser.
 
 ## 6. Handling Broken / Malformed CSV Files
 
