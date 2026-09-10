@@ -8,8 +8,9 @@ const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://analyzr-backend.o
  * required by the Next.js dev server's HMR — it's dropped in production,
  * where it would otherwise hand a would-be XSS its execution primitive.
  *
- * `connect-src` is pinned to the configured backend so a script that does get
- * injected can't quietly ship the user's uploaded data to a third party.
+ * `connect-src` is pinned to the configured backend (plus Web3Forms, used by
+ * the feedback form) so a script that does get injected can't quietly ship
+ * the user's uploaded data to an arbitrary third party.
  */
 const csp = [
   "default-src 'self'",
@@ -19,7 +20,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${backendUrl}`,
+  `connect-src 'self' ${backendUrl} https://api.web3forms.com`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
