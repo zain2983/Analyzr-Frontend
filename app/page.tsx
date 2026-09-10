@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { TabNavigation } from "@/components/tab-navigation"
 import { FileToolbar } from "@/components/file-toolbar"
 import { FileUploadModal } from "@/components/file-upload-modal"
@@ -16,7 +16,7 @@ import { ConversionTab } from "@/components/tabs/conversion-tab"
 import { SQLTab } from "@/components/tabs/sql-tab"
 import { CheckCommasTab } from "@/components/tabs/check-commas-tab"
 import { BACKEND_URL } from "@/lib/config"
-import { listDatasetIds } from "@/lib/api/list-datasets"
+import { reconcileDatasetIds } from "@/lib/api/list-datasets"
 import { deleteDataset } from "@/lib/api/delete-dataset"
 
 export type TabId =
@@ -72,6 +72,11 @@ export default function Page() {
   const [mounted, setMounted] = useState(false)
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("")
 
+  // Mirrors `datasets` for the reconcile effect, which fires on backend status
+  // rather than on dataset changes and would otherwise read a stale closure.
+  const datasetsRef = useRef<Dataset[]>([])
+  datasetsRef.current = datasets
+
   useEffect(() => {
     if (backendStatus !== "waking") return
 
@@ -85,9 +90,19 @@ export default function Page() {
   useEffect(() => {
     setMounted(true)
 
-    const raw = sessionStorage.getItem("datasets")
-    if (raw) {
-      setDatasets(JSON.parse(raw))
+    // Restoring from sessionStorage is parsing untrusted input: a malformed
+    // or hand-edited value would otherwise throw here and leave the app stuck
+    // on a blank screen with no way to recover short of clearing site data.
+    try {
+      const raw = sessionStorage.getItem("datasets")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          setDatasets(parsed.filter((d) => d && typeof d.id === "string"))
+        }
+      }
+    } catch {
+      sessionStorage.removeItem("datasets")
     }
 
     const wakeServer = async () => {
@@ -131,7 +146,9 @@ export default function Page() {
 
     const reconcile = async () => {
       try {
-        const liveIds = await listDatasetIds()
+        const knownIds = datasetsRef.current.map((d) => d.id)
+        if (knownIds.length === 0) return
+        const liveIds = await reconcileDatasetIds(knownIds)
         if (cancelled) return
         const liveIdSet = new Set(liveIds)
         setDatasets((prev) =>

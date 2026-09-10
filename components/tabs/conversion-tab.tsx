@@ -3,8 +3,12 @@
 import { useState, useRef } from "react"
 import type { Dataset } from "@/app/page"
 import { DatasetSelector } from "@/components/dataset-selector"
+import { sanitizeCsvCell, toCsvField } from "@/lib/csv-safe"
 
 const NONE = "none"
+
+/** Matches the backend's upload cap — this tab reads the whole file into memory. */
+const MAX_INPUT_BYTES = 20 * 1024 * 1024
 
 export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
   const [direction, setDirection] = useState<"csv2json" | "json2csv">("csv2json")
@@ -16,6 +20,11 @@ export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const readFile = (file: File) => {
+    if (file.size > MAX_INPUT_BYTES) {
+      setOutputText(`File is too large to convert here (max ${MAX_INPUT_BYTES / (1024 * 1024)} MB).`)
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = () => {
       const text = String(reader.result || "")
@@ -73,18 +82,15 @@ export function ConversionTab({ datasets }: { datasets: Dataset[] }) {
       return acc
     }, new Set<string>())
     const keys = Array.from(keySet)
-    const escape = (v: any) => {
-      if (v === null || v === undefined) return ""
-      const s = String(v)
-      if (s.includes(delim) || s.includes('"') || s.includes("\n")) {
-        return `"${s.replace(/"/g, '""')}"`
-      }
-      return s
-    }
+
+    // Header names land in the file's first row, so they carry the same
+    // formula-injection risk as a cell and get the same treatment.
+    const headerLine = keys.map((k) => toCsvField(sanitizeCsvCell(k), delim)).join(delim)
+
     const rows: string[] = data.map((r) =>
-      keys.map((k: string) => escape(r[k])).join(delim)
+      keys.map((k: string) => toCsvField(r[k], delim)).join(delim)
     )
-    const lines: string[] = [keys.join(delim), ...rows]
+    const lines: string[] = [headerLine, ...rows]
     return lines.join("\n")
   }
 

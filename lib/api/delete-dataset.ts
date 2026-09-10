@@ -6,7 +6,7 @@ import { BACKEND_URL } from "@/lib/config"
  * resolves normally rather than throwing.
  */
 export async function deleteDataset(datasetId: string): Promise<void> {
-    const url = `${BACKEND_URL}/api/dataset/${datasetId}`
+    const url = `${BACKEND_URL}/api/dataset/${encodeURIComponent(datasetId)}`
 
     const res = await fetch(url, { method: "DELETE" })
 
