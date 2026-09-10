@@ -41,13 +41,15 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
           throw new Error(`Invalid response for file: ${files[idx].name}`)
         }
 
+        const columnNames: string[] = Array.isArray(resp.columns) ? resp.columns : []
+
         return {
           id: resp.dataset_id,
           name: files[idx].name,
           sourceName: files[idx].name,
           rows: resp.rows ?? 0,
-          columns: Array.isArray(resp.columns) ? resp.columns.length : (resp.columns ?? 0),
-          columnNames: Array.isArray(resp.columns) ? resp.columns : [],
+          columns: columnNames.length,
+          columnNames,
           columnTypes: resp.column_types && typeof resp.column_types === "object" ? resp.column_types : undefined,
         }
       })
