@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, X, FileText, Download, Loader2, AlertTriangle, Trash2, Pencil } from "lucide-react"
+import { Plus, X, FileText, Download, Loader2, AlertTriangle, Trash2, Pencil, Wrench } from "lucide-react"
 import type { Dataset } from "@/app/page"
 import { cn } from "@/lib/utils"
 import { downloadDataset } from "@/lib/api/download-dataset"
@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 interface FileToolbarProps {
   datasets: Dataset[]
@@ -142,6 +143,29 @@ export function FileToolbar({
 
                       {editingId !== dataset.id && (
                         <div className="ml-2 flex items-center gap-1.5 flex-shrink-0">
+                          {/* Repair-report badge — only for datasets the backend had to fix something on */}
+                          {!dataset.stale && dataset.repairReport && !dataset.repairReport.clean && (
+                            <HoverCard openDelay={100}>
+                              <HoverCardTrigger asChild>
+                                <span className="cursor-default text-amber-500" aria-label="This file needed repairs on upload">
+                                  <Wrench className="h-3.5 w-3.5" />
+                                </span>
+                              </HoverCardTrigger>
+                              <HoverCardContent className="w-80 border-zinc-700 bg-zinc-800 text-zinc-100" side="bottom">
+                                <p className="mb-2 text-xs font-medium text-amber-500">
+                                  This file needed repairs during upload
+                                </p>
+                                <ul className="space-y-1.5 text-xs text-zinc-300">
+                                  {dataset.repairReport.warnings.map((w, i) => (
+                                    <li key={i} className="leading-snug">
+                                      • {w}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </HoverCardContent>
+                            </HoverCard>
+                          )}
+
                           {/* Rename button */}
                           <button
                             onClick={() => startEditing(dataset)}

@@ -1,12 +1,25 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { FileUpload } from "@/components/file-upload"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
-import type { Dataset } from "@/app/page"
+import type { Dataset, RepairReport } from "@/app/page"
 import { uploadDataset } from "@/lib/api/upload-dataset"
+
+function parseRepairReport(raw: any): RepairReport | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  return {
+    clean: Boolean(raw.clean),
+    encoding: typeof raw.encoding === "string" ? raw.encoding : "utf-8",
+    encodingConfidence: typeof raw.encoding_confidence === "number" ? raw.encoding_confidence : null,
+    delimiter: typeof raw.delimiter === "string" ? raw.delimiter : ",",
+    warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((w: unknown) => typeof w === "string") : [],
+    stats: raw.stats && typeof raw.stats === "object" ? raw.stats : {},
+  }
+}
 
 interface FileUploadModalProps {
   datasets: Dataset[]
@@ -42,6 +55,7 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
         }
 
         const columnNames: string[] = Array.isArray(resp.columns) ? resp.columns : []
+        const repairReport = parseRepairReport(resp.repair_report)
 
         return {
           id: resp.dataset_id,
@@ -51,10 +65,21 @@ export function FileUploadModal({ datasets, onDatasetsChange, onClose, maxFiles 
           columns: columnNames.length,
           columnNames,
           columnTypes: resp.column_types && typeof resp.column_types === "object" ? resp.column_types : undefined,
+          repairReport,
         }
       })
 
       onDatasetsChange(prev => [...prev, ...newDatasets])
+
+      for (const dataset of newDatasets) {
+        const report = dataset.repairReport
+        if (report && !report.clean && report.warnings.length > 0) {
+          toast.warning(`"${dataset.name}" needed some repairs`, {
+            description: report.warnings.join(" · "),
+            duration: 8000,
+          })
+        }
+      }
 
       // Close modal after successful upload
       setTimeout(() => {

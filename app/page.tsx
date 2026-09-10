@@ -49,6 +49,18 @@ export interface Dataset {
   data?: Record<string, any>[]
   /** True when this id no longer exists on the backend (e.g. after a restart). Actions should be disabled. */
   stale?: boolean
+  /** What the backend's CSV repair pipeline detected/fixed on upload — omitted for JSON/XLSX uploads. */
+  repairReport?: RepairReport
+}
+
+/** Kept small and serializable — this rides along in sessionStorage with the rest of the dataset. */
+export interface RepairReport {
+  clean: boolean
+  encoding: string
+  encodingConfidence: number | null
+  delimiter: string
+  warnings: string[]
+  stats: Record<string, number>
 }
 
 export default function Page() {
