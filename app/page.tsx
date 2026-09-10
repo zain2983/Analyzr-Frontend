@@ -177,6 +177,13 @@ export default function Page() {
     setDatasets((prev) => prev.map((d) => (d.id === id ? { ...d, name } : d)))
   }
 
+  /** Applied after a successful POST /api/transform/rename — the backend is the source of truth for columns post-rename. */
+  const handleColumnRenamed = (datasetId: string, columns: string[], columnTypes: Record<string, string>) => {
+    setDatasets((prev) =>
+      prev.map((d) => (d.id === datasetId ? { ...d, columnNames: columns, columnTypes } : d)),
+    )
+  }
+
   const handleClearAllDatasets = () => {
     const ids = datasets.map((d) => d.id)
     setDatasets([])
@@ -252,7 +259,7 @@ export default function Page() {
 
           {activeTab === "transformation" && <TransformationTab datasets={datasets} />}
 
-          {activeTab === "compare" && <CompareTab datasets={datasets} />}
+          {activeTab === "compare" && <CompareTab datasets={datasets} onColumnRenamed={handleColumnRenamed} />}
 
           {activeTab === "data-ops" && <DataOpsTab datasets={datasets} />}
 
