@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { TabNavigation } from "@/components/tab-navigation"
+import { Footer } from "@/components/footer"
 import { FileToolbar } from "@/components/file-toolbar"
 import { FileUploadModal } from "@/components/file-upload-modal"
 import { CSVBasicsTab } from "@/components/tabs/csv-basics-tab"
@@ -185,7 +186,7 @@ export default function Page() {
   }
 
   return (
-    <div className="dark min-h-screen bg-zinc-950">
+    <div className="dark flex min-h-screen flex-col bg-zinc-950">
       {/* Top Navigation Bar */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
         <div className="mx-auto flex h-auto max-w-7xl flex-col gap-4 px-4 py-4 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-0">
@@ -235,7 +236,7 @@ export default function Page() {
       </div>
 
       {/* Main Content */}
-      <main className="pt-36 sm:pt-32">
+      <main className="flex-1 pt-36 sm:pt-32">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
           {activeTab === "csv-basics" && <CSVBasicsTab datasets={datasets} onRemoveDataset={handleRemoveDataset} />}
 
@@ -272,6 +273,8 @@ export default function Page() {
 
         </div>
       </main>
+
+      <Footer />
 
       {showUploadModal && (
         <FileUploadModal
