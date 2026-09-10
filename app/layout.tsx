@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import WakeUpBackend from "@/components/WakeBackend"
 import { Toaster } from "@/components/ui/sonner"
+import { FeedbackButton } from "@/components/feedback-button"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         <WakeUpBackend /> {/* To silently ping Render Backend */}
         {children}
+        <FeedbackButton />
         <Toaster />
         <Analytics />
       </body>
