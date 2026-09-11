@@ -14,6 +14,7 @@ import { DatasetSelector } from "@/components/dataset-selector"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 interface SQLTabProps {
   datasets: Dataset[]
@@ -159,53 +160,62 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
     )
   }
 
+  // Inside the resizable split, the card fills its panel and the Run Query
+  // button is pinned below a scrollable middle section — otherwise, dragging
+  // the panel smaller pushes the button below the fold with no visible way
+  // to reach it (only the editor content scrolled, not the whole card).
+  // Standalone (no results yet), the card just sizes to its content.
+  const inSplitView = resultRows.length > 0
+
   const queryCard = (
-    <Card className="border-zinc-800 bg-zinc-900 p-6">
-      <DatasetSelector
-        datasets={datasets}
-        value={selectedDatasetId}
-        onChange={onSelectedDatasetChange}
-        className="mb-4"
-      />
-
-      {starterQueries.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {starterQueries.map((sq) => (
-            <Button
-              key={sq.label}
-              variant="outline"
-              size="sm"
-              onClick={() => insertStarterQuery(sq.query)}
-              className="border-zinc-700 bg-zinc-950 text-xs text-zinc-300 hover:bg-zinc-800"
-            >
-              {sq.label}
-            </Button>
-          ))}
-        </div>
-      )}
-
-      <div className="rounded-md border border-zinc-800 overflow-hidden text-sm">
-        <CodeMirror
-          value={queryRef.current}
-          height="150px"
-          theme={oneDark}
-          extensions={[sqlExtension]}
-          onCreateEditor={(view) => {
-            editorViewRef.current = view
-          }}
-          onChange={(val) => {
-            queryRef.current = val
-          }}
-          indentWithTab={false}
-          basicSetup={{
-            lineNumbers: true,
-            highlightActiveLine: true,
-            autocompletion: true,
-          }}
+    <Card className={cn("border-zinc-800 bg-zinc-900 p-6 flex flex-col", inSplitView && "h-full")}>
+      <div className="min-h-0 flex-1 overflow-auto pr-1">
+        <DatasetSelector
+          datasets={datasets}
+          value={selectedDatasetId}
+          onChange={onSelectedDatasetChange}
+          className="mb-4"
         />
+
+        {starterQueries.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {starterQueries.map((sq) => (
+              <Button
+                key={sq.label}
+                variant="outline"
+                size="sm"
+                onClick={() => insertStarterQuery(sq.query)}
+                className="border-zinc-700 bg-zinc-950 text-xs text-zinc-300 hover:bg-zinc-800"
+              >
+                {sq.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        <div className="rounded-md border border-zinc-800 overflow-hidden text-sm">
+          <CodeMirror
+            value={queryRef.current}
+            height="150px"
+            theme={oneDark}
+            extensions={[sqlExtension]}
+            onCreateEditor={(view) => {
+              editorViewRef.current = view
+            }}
+            onChange={(val) => {
+              queryRef.current = val
+            }}
+            indentWithTab={false}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLine: true,
+              autocompletion: true,
+            }}
+          />
+        </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-3 flex shrink-0 items-center gap-3">
         <Button onClick={execute} disabled={loading} className="bg-zinc-800 hover:bg-zinc-700">
           {loading ? "Running..." : "Run Query"}
         </Button>
@@ -278,8 +288,8 @@ export function SQLTab({ datasets, selectedDatasetId, onSelectedDatasetChange }:
   return (
     <div className="h-[75vh] min-h-[500px]">
       <ResizablePanelGroup direction="vertical" className="rounded-lg">
-        <ResizablePanel defaultSize={45} minSize={25}>
-          <div className="h-full overflow-auto pr-1">{queryCard}</div>
+        <ResizablePanel defaultSize={45} minSize={20}>
+          <div className="h-full">{queryCard}</div>
         </ResizablePanel>
         <ResizableHandle withHandle className="my-2 bg-transparent" />
         <ResizablePanel defaultSize={55} minSize={20}>
